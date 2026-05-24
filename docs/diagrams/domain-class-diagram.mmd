@@ -1,0 +1,134 @@
+classDiagram
+    class GameState["Состояние игры"] {
+        +день: Int
+        +золото: Int
+        +репутация: Int
+        +этапИгры: ЭтапИгры
+        +сюжетныеФлаги: Set
+        +открытыйКонтент: Set
+    }
+
+    class Tavern["Таверна"] {
+        +название: String
+        +уровень: Int
+        +атмосфера: АтмосфераТаверны
+        +репутация: Int
+    }
+
+    class TavernUpgrade["Улучшение таверны"] {
+        +id: String
+        +название: String
+        +описание: String
+        +стоимость: Int
+        +эффекты: List
+    }
+
+    class Visitor["Посетитель"] {
+        +id: String
+        +имя: String
+        +тип: ТипПосетителя
+        +характер: String
+        +любимыеРецепты: List
+    }
+
+    class VisitorState["Состояние посетителя"] {
+        +visitorId: String
+        +отношение: Int
+        +настроение: НастроениеПосетителя
+        +этапИстории: Int
+    }
+
+    class DialogueTree["Дерево диалога"] {
+        +id: String
+        +начальныйУзел: String
+    }
+
+    class DialogueNode["Узел диалога"] {
+        +id: String
+        +говорящий: String
+        +текст: String
+    }
+
+    class DialogueChoice["Выбор в диалоге"] {
+        +текст: String
+        +следующийУзел: String
+        +эффекты: List
+    }
+
+    class Inventory["Инвентарь"] {
+        +ингредиенты: Map
+        +известныеРецепты: Set
+    }
+
+    class Ingredient["Ингредиент"] {
+        +id: String
+        +название: String
+        +редкость: РедкостьИнгредиента
+        +теги: List
+    }
+
+    class Recipe["Рецепт"] {
+        +id: String
+        +название: String
+        +нужныеИнгредиенты: List
+        +базоваяЦена: Int
+        +эффект: ЭффектНапитка
+    }
+
+    class BrewingSession["Приготовление напитка"] {
+        +выбранныеИнгредиенты: List
+        +результатМиниИгры: Int
+        +итоговоеКачество: КачествоНапитка
+    }
+
+    class Drink["Напиток"] {
+        +название: String
+        +качество: КачествоНапитка
+        +ингредиенты: List
+        +эффекты: List
+    }
+
+    class NightEvent["Событие ночи"] {
+        +id: String
+        +название: String
+        +описание: String
+        +условия: List
+    }
+
+    class EventChoice["Выбор события"] {
+        +текст: String
+        +эффекты: List
+    }
+
+    class SaveData["Данные сохранения"] {
+        +состояниеИгры: GameState
+        +инвентарь: Inventory
+        +состоянияПосетителей: List
+    }
+
+    GameState "1" --> "1" Tavern
+    GameState "1" --> "1" Inventory
+    GameState "1" --> "*" VisitorState
+    GameState "1" --> "*" NightEvent
+
+    Tavern "1" --> "*" TavernUpgrade
+
+    Visitor "1" --> "1" VisitorState
+    Visitor "1" --> "1" DialogueTree
+
+    DialogueTree "1" --> "*" DialogueNode
+    DialogueNode "1" --> "*" DialogueChoice
+
+    Inventory "1" --> "*" Ingredient
+    Inventory "1" --> "*" Recipe
+
+    Recipe "1" --> "*" Ingredient
+    BrewingSession "1" --> "*" Ingredient
+    BrewingSession "1" --> "1" Drink
+    Drink "1" --> "*" Ingredient
+
+    NightEvent "1" --> "*" EventChoice
+
+    SaveData "1" --> "1" GameState
+    SaveData "1" --> "1" Inventory
+    SaveData "1" --> "*" VisitorState

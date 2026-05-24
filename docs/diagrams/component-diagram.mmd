@@ -1,0 +1,38 @@
+flowchart TB
+    Core[Игровое ядро]
+    Screens[Игровые экраны]
+
+    Tavern[Система таверны]
+    Visitors[Система посетителей]
+    Dialogue[Система диалогов]
+    Brewing[Система напитков]
+    Events[Система событий]
+    Progression[Система прогрессии]
+
+    Content[(Контент игры)]
+    Save[(Сохранение)]
+
+    Core --> Screens
+
+    Core --> Tavern
+    Core --> Visitors
+    Core --> Dialogue
+    Core --> Brewing
+    Core --> Events
+    Core --> Progression
+
+    Tavern --> Content
+    Visitors --> Content
+    Dialogue --> Content
+    Brewing --> Content
+    Events --> Content
+
+    Tavern --> Progression
+    Visitors --> Progression
+    Dialogue --> Progression
+    Brewing --> Progression
+    Events --> Progression
+
+    Progression --> Content
+    Core --> Save
+    Save --> Core
