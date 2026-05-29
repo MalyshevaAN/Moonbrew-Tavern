@@ -5,6 +5,7 @@ data class GameScenario(
   val initialState: GameState,
   val visitor: Visitor,
   val recipe: Recipe,
+  val availableIngredients: List<Ingredient>,
   val brewingHint: String,
   val outcome: ServingOutcome,
 )

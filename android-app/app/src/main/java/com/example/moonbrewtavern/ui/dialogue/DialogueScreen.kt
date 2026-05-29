@@ -17,6 +17,7 @@ import com.example.moonbrewtavern.domain.model.GameState
 import com.example.moonbrewtavern.domain.model.GamePhase
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
 import com.example.moonbrewtavern.ui.common.AccentBlock
+import com.example.moonbrewtavern.ui.common.AmbientScenePanel
 import com.example.moonbrewtavern.ui.common.GameStageLayout
 import com.example.moonbrewtavern.ui.common.InfoLine
 import com.example.moonbrewtavern.ui.common.SectionTitle
@@ -49,6 +50,10 @@ fun DialogueScreen(
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
       }
+      AmbientScenePanel(
+        title = "Counter conversation",
+        subtitle = "She keeps one glove on, watches your shelves carefully, and speaks like someone used to bad roadside ale.",
+      )
       SectionTitle("Read on the guest")
       Row(horizontalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.fillMaxWidth()) {
         InfoLine(label = "Mood", value = scenario.visitor.mood.name)

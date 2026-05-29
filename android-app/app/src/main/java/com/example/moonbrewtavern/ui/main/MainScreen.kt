@@ -23,6 +23,7 @@ import com.example.moonbrewtavern.data.DefaultDataRepository
 import com.example.moonbrewtavern.domain.model.GameScenario
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
 import com.example.moonbrewtavern.ui.common.AccentBlock
+import com.example.moonbrewtavern.ui.common.AmbientScenePanel
 import com.example.moonbrewtavern.ui.common.GameStageLayout
 import com.example.moonbrewtavern.ui.common.InfoLine
 import com.example.moonbrewtavern.ui.common.SectionTitle
@@ -68,6 +69,10 @@ internal fun MainScreen(
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
+      AmbientScenePanel(
+        title = "Bar ready for service",
+        subtitle = "Two lanterns lit, copper tools polished, rain tracing the west window.",
+      )
       AccentBlock {
         Text(
           text = scenario.visitor.name,
@@ -87,17 +92,18 @@ internal fun MainScreen(
       Row(horizontalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.fillMaxWidth()) {
         InfoLine(label = "Mood", value = scenario.visitor.mood.name)
         InfoLine(label = "Focus", value = scenario.visitor.favoriteFlavor)
+        InfoLine(label = "Tonight", value = "First guest")
       }
     },
     detailContent = {
-      SectionTitle("What this PR already proves")
-      InfoLine(label = "Playable loop", value = "Tavern -> dialogue -> brewing -> result")
-      InfoLine(label = "Featured drink", value = scenario.recipe.name)
-      InfoLine(label = "Design goal", value = "One guest, one order, one clear emotional payoff")
+      SectionTitle("Service board")
+      InfoLine(label = "Guest on deck", value = scenario.visitor.name)
+      InfoLine(label = "Expected pour", value = scenario.recipe.name)
+      InfoLine(label = "Mood to protect", value = "Calm confidence")
       Spacer(Modifier.height(8.dp))
-      SectionTitle("Service notes")
+      SectionTitle("Room read")
       Text(
-        text = "We are aiming for a wide, scene-first flow. The visitor stays emotionally present while the UI guides the player through one service sequence.",
+        text = "The tavern should feel like a place first and a menu second. This screen sets the tone before the order turns into choices.",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )

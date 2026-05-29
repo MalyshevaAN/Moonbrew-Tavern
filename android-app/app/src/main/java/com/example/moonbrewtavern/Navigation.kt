@@ -3,7 +3,11 @@ package com.example.moonbrewtavern
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
@@ -22,6 +26,8 @@ fun MainNavigation() {
   val repository = remember { DefaultDataRepository() }
   val scenario = remember { repository.scenario }
   val backStack = rememberNavBackStack(Main)
+  val selectedIngredientIds = remember { mutableStateListOf<String>() }
+  var brewResult by remember { mutableStateOf(repository.evaluateBrew(emptySet())) }
 
   NavDisplay(
     backStack = backStack,
@@ -45,14 +51,28 @@ fun MainNavigation() {
         entry<Brewing> {
           BrewingScreen(
             scenario = scenario,
-            onServe = { backStack.add(Result) },
+            selectedIngredientIds = selectedIngredientIds,
+            onIngredientToggle = { ingredientId ->
+              if (ingredientId in selectedIngredientIds) {
+                selectedIngredientIds.remove(ingredientId)
+              } else if (selectedIngredientIds.size < 3) {
+                selectedIngredientIds.add(ingredientId)
+              }
+            },
+            onServe = {
+              brewResult = repository.evaluateBrew(selectedIngredientIds.toSet())
+              backStack.add(Result)
+            },
             modifier = Modifier.safeDrawingPadding().padding(16.dp),
           )
         }
         entry<Result> {
           ResultScreen(
             scenario = scenario,
+            brewResult = brewResult,
             onReturnToTavern = {
+              selectedIngredientIds.clear()
+              brewResult = repository.evaluateBrew(emptySet())
               while (backStack.size > 1) {
                 backStack.removeLastOrNull()
               }

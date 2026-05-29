@@ -2,6 +2,7 @@ package com.example.moonbrewtavern.ui.main
 
 import com.example.moonbrewtavern.data.DataRepository
 import com.example.moonbrewtavern.data.DefaultDataRepository
+import com.example.moonbrewtavern.domain.model.BrewResult
 import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -28,4 +29,6 @@ class MainScreenViewModelTest {
 private class FakeMyModelRepository : DataRepository {
   override val scenario = DefaultDataRepository().scenario
   override val data: Flow<com.example.moonbrewtavern.domain.model.GameScenario> = flowOf(scenario)
+
+  override fun evaluateBrew(selectedIngredientIds: Set<String>): BrewResult = DefaultDataRepository().evaluateBrew(selectedIngredientIds)
 }

@@ -1,6 +1,8 @@
 package com.example.moonbrewtavern.ui.common
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -22,8 +25,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.moonbrewtavern.domain.model.GamePhase
 import com.example.moonbrewtavern.domain.model.GameState
 
 @Composable
@@ -35,6 +40,7 @@ fun GameStageLayout(
   modifier: Modifier = Modifier,
   actionLabel: String? = null,
   actionNote: String? = null,
+  actionEnabled: Boolean = true,
   onAction: (() -> Unit)? = null,
   sceneContent: @Composable ColumnScope.() -> Unit,
   detailContent: @Composable ColumnScope.() -> Unit,
@@ -66,6 +72,8 @@ fun GameStageLayout(
           style = MaterialTheme.typography.bodyLarge,
           color = colors.onSurfaceVariant,
         )
+        Spacer(Modifier.height(16.dp))
+        ProgressTrack(currentPhase = state.phase)
         Spacer(Modifier.height(20.dp))
         Surface(
           modifier = Modifier.fillMaxWidth().weight(1f),
@@ -110,10 +118,56 @@ fun GameStageLayout(
           }
           Button(
             onClick = onAction,
+            enabled = actionEnabled,
             modifier = Modifier.fillMaxWidth().height(56.dp),
           ) {
             Text(text = actionLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
           }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun ProgressTrack(currentPhase: GamePhase) {
+  val steps =
+    listOf(
+      GamePhase.Tavern to "Tavern",
+      GamePhase.Dialogue to "Dialogue",
+      GamePhase.Brewing to "Brew",
+      GamePhase.Result to "Result",
+    )
+  Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.spacedBy(10.dp),
+  ) {
+    steps.forEach { (phase, label) ->
+      val isActive = phase == currentPhase
+      val isPassed = phase.ordinal < currentPhase.ordinal
+      val container =
+        when {
+          isActive -> MaterialTheme.colorScheme.primary
+          isPassed -> MaterialTheme.colorScheme.primaryContainer
+          else -> MaterialTheme.colorScheme.surfaceVariant
+        }
+      val contentColor =
+        when {
+          isActive -> MaterialTheme.colorScheme.onPrimary
+          else -> MaterialTheme.colorScheme.onSurfaceVariant
+        }
+      Surface(
+        modifier = Modifier.weight(1f),
+        shape = RoundedCornerShape(999.dp),
+        color = container,
+      ) {
+        Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+          Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = contentColor,
+            fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
+          )
         }
       }
     }
@@ -215,20 +269,88 @@ fun AccentBlock(
 }
 
 @Composable
-fun IngredientBadge(name: String, note: String) {
+fun AmbientScenePanel(
+  title: String,
+  subtitle: String,
+  modifier: Modifier = Modifier,
+) {
   Surface(
+    modifier = modifier.fillMaxWidth(),
+    shape = RoundedCornerShape(24.dp),
+    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+  ) {
+    Row(
+      modifier = Modifier.fillMaxWidth().padding(18.dp),
+      horizontalArrangement = Arrangement.spacedBy(16.dp),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Box(
+        modifier =
+          Modifier
+            .size(64.dp)
+            .background(
+              brush =
+                Brush.radialGradient(
+                  colors =
+                    listOf(
+                      MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
+                      MaterialTheme.colorScheme.secondaryContainer,
+                    ),
+                ),
+              shape = RoundedCornerShape(20.dp),
+            ),
+      )
+      Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(
+          text = subtitle,
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
+    }
+  }
+}
+
+@Composable
+fun IngredientBadge(
+  name: String,
+  note: String,
+  selected: Boolean = false,
+  enabled: Boolean = true,
+  modifier: Modifier = Modifier,
+  onClick: (() -> Unit)? = null,
+) {
+  val tint =
+    when {
+      selected -> MaterialTheme.colorScheme.primaryContainer
+      else -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
+    }
+  Surface(
+    modifier =
+      modifier
+        .then(if (onClick != null) Modifier.clickable(enabled = enabled, onClick = onClick) else Modifier)
+        .border(
+          width = if (selected) 2.dp else 1.dp,
+          color =
+            if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.outlineVariant,
+          shape = RoundedCornerShape(18.dp),
+        ),
     shape = RoundedCornerShape(18.dp),
-    color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f),
+    color = tint,
   ) {
     Column(
-      modifier = Modifier.width(132.dp).padding(horizontal = 14.dp, vertical = 12.dp),
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
       verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
       Text(text = name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
       Text(
         text = note,
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onTertiaryContainer,
+        color =
+          if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+          else MaterialTheme.colorScheme.onTertiaryContainer,
       )
     }
   }
