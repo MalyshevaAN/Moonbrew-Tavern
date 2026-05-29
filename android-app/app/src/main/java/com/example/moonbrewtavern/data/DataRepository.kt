@@ -75,11 +75,11 @@ class DefaultDataRepository : DataRepository {
         Visitor(
           id = "lyra",
           name = "Lyra Vale",
-          title = "Cartographer of the North Road",
+          title = "Картограф Северного тракта",
           mood = VisitorMood.Curious,
-          openingLine = "So this is the tavern people whisper about when the roads get lonely.",
-          requestLine = "If you have a steady hand, brew me something clear-headed with a little warmth under it.",
-          favoriteFlavor = "cool herbs with a warm finish",
+          openingLine = "Так вот о какой таверне шепчутся путники, когда дорога становится особенно долгой.",
+          requestLine = "Если рука у тебя твердая, приготовь мне что-нибудь ясное по вкусу, с легким теплым послевкусием.",
+          favoriteFlavor = "прохладные травы с теплым послевкусием",
         ),
       recipe =
         Recipe(

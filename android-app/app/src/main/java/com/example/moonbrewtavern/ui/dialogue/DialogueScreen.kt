@@ -1,7 +1,9 @@
 package com.example.moonbrewtavern.ui.dialogue
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,8 +25,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.moonbrewtavern.R
 import com.example.moonbrewtavern.data.DefaultDataRepository
 import com.example.moonbrewtavern.domain.model.GameScenario
@@ -60,40 +65,46 @@ private fun DialogueSceneOverlay(
   modifier: Modifier = Modifier,
 ) {
   Box(modifier = modifier) {
+    // Верхняя плашка ночи/времени.
+    // Кнопка меню справа сверху.
     Image(
       painter = painterResource(R.drawable.dialogue_status_bar),
       contentDescription = null,
-      modifier = Modifier.width(260.dp).align(Alignment.TopEnd).offset(x = (-82).dp, y = 2.dp),
+      modifier = Modifier.width(130.dp).align(Alignment.TopEnd).offset(x = (-58).dp, y = 6.dp),
       contentScale = ContentScale.FillWidth,
     )
     Image(
       painter = painterResource(R.drawable.dialogue_menu_button),
       contentDescription = null,
-      modifier = Modifier.width(52.dp).align(Alignment.TopEnd).offset(y = 4.dp),
+      modifier = Modifier.width(46.dp).align(Alignment.TopEnd).offset(x = (-6).dp, y = 8.dp),
       contentScale = ContentScale.FillWidth,
     )
 
+    // Само облачко над персонажами.
     Image(
       painter = painterResource(R.drawable.dialogue_bubble),
       contentDescription = null,
-      modifier = Modifier.width(470.dp).align(Alignment.TopCenter).offset(y = 62.dp),
+      modifier = Modifier.width(270.dp).align(Alignment.TopCenter).offset(x = (-76).dp, y = 1.dp),
       contentScale = ContentScale.FillWidth,
     )
+    // Текст внутри облачка.
     BubbleText(
       text = scenario.visitor.openingLine,
-      modifier = Modifier.align(Alignment.TopCenter).offset(x = (-12).dp, y = 94.dp),
+      modifier = Modifier.align(Alignment.TopCenter).offset(x = (-94).dp, y = 18.dp),
     )
 
-    CharacterStage(modifier = Modifier.align(Alignment.CenterStart).offset(x = 118.dp, y = 40.dp))
+    // Центральная сцена с Лирой и барменом.
+    CharacterStage(modifier = Modifier.align(Alignment.Center).offset(x = (-8).dp, y = 34.dp))
 
+    // Правая карточка персонажа.
     ProfilePanel(
-      scenario = scenario,
-      modifier = Modifier.align(Alignment.CenterEnd).offset(y = 40.dp),
+      modifier = Modifier.align(Alignment.CenterEnd).offset(x = (-6).dp, y = 18.dp),
     )
 
+    // Нижний блок с 4 вариантами ответа.
     DialogueChoices(
       onContinue = onContinue,
-      modifier = Modifier.align(Alignment.BottomStart).offset(x = 38.dp, y = (-22).dp),
+      modifier = Modifier.align(Alignment.BottomStart).offset(x = 14.dp, y = 10.dp),
     )
   }
 }
@@ -105,28 +116,33 @@ private fun BubbleText(
 ) {
   Text(
     text = text,
-    modifier = modifier.width(380.dp),
+    modifier = modifier.width(200.dp), // Ширина текста в облачке.
     color = Color(0xFF1F1A17),
-    style = MaterialTheme.typography.headlineSmall,
+    style = MaterialTheme.typography.titleMedium.copy(
+      fontSize = 11.sp, // Размер текста реплики.
+      lineHeight = 14.sp, // Межстрочный интервал.
+    ),
     fontWeight = FontWeight.Medium,
+    maxLines = 3,
+    overflow = TextOverflow.Ellipsis,
   )
 }
 
 @Composable
 private fun CharacterStage(modifier: Modifier = Modifier) {
   Box(
-    modifier = modifier.width(520.dp).height(320.dp),
+    modifier = modifier.width(446.dp).height(262.dp), // Общая зона двух персонажей.
   ) {
     Image(
       painter = painterResource(R.drawable.dialogue_visitor_lyra),
       contentDescription = null,
-      modifier = Modifier.width(210.dp).align(Alignment.BottomStart),
+      modifier = Modifier.width(154.dp).align(Alignment.BottomStart).offset(x = 14.dp), // Лира слева.
       contentScale = ContentScale.FillWidth,
     )
     Image(
       painter = painterResource(R.drawable.dialogue_bartender),
       contentDescription = null,
-      modifier = Modifier.width(200.dp).align(Alignment.BottomEnd).offset(x = (-24).dp, y = 2.dp),
+      modifier = Modifier.width(164.dp).align(Alignment.BottomEnd).offset(x = (-44).dp, y = -24.dp), // Бармен справа.
       contentScale = ContentScale.FillWidth,
     )
   }
@@ -134,60 +150,14 @@ private fun CharacterStage(modifier: Modifier = Modifier) {
 
 @Composable
 private fun ProfilePanel(
-  scenario: GameScenario,
   modifier: Modifier = Modifier,
 ) {
-  Box(modifier = modifier.width(300.dp)) {
+  Box(modifier = modifier.width(248.dp)) { // Размер правой карточки.
     Image(
       painter = painterResource(R.drawable.dialogue_profile_card),
       contentDescription = null,
       modifier = Modifier.fillMaxWidth(),
       contentScale = ContentScale.FillWidth,
-    )
-
-    Column(
-      modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 26.dp),
-      verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-      Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-          text = scenario.visitor.name,
-          color = Color.White,
-          style = MaterialTheme.typography.headlineMedium,
-          fontWeight = FontWeight.Bold,
-        )
-        Text(
-          text = scenario.visitor.title,
-          color = Color(0xFFD9B36C),
-          style = MaterialTheme.typography.titleMedium,
-        )
-      }
-
-      StatLine(label = "Affinity", value = "35/100", accent = Color(0xFF89B26E))
-      StatLine(label = "Favorite drink", value = "Herbal blend", accent = Color(0xFF89B26E))
-      StatLine(label = "Prefers", value = "Light, sweet", accent = Color(0xFFD8C16E))
-      StatLine(label = "Dislikes", value = "Bitterness", accent = Color(0xFFD56B6B))
-    }
-  }
-}
-
-@Composable
-private fun StatLine(
-  label: String,
-  value: String,
-  accent: Color,
-) {
-  Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-    Text(
-      text = label,
-      color = accent,
-      style = MaterialTheme.typography.titleMedium,
-      fontWeight = FontWeight.SemiBold,
-    )
-    Text(
-      text = value,
-      color = Color(0xFFE8DED1),
-      style = MaterialTheme.typography.bodyLarge,
     )
   }
 }
@@ -198,16 +168,16 @@ private fun DialogueChoices(
   modifier: Modifier = Modifier,
 ) {
   Column(
-    modifier = modifier.width(700.dp),
-    verticalArrangement = Arrangement.spacedBy(10.dp),
+    modifier = modifier.width(448.dp), // Общая ширина блока вопросов.
+    verticalArrangement = Arrangement.spacedBy(5.dp), // Расстояние между верхним и нижним рядом.
   ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-      ChoiceCard(text = "1. What brought you here?", modifier = Modifier.weight(1f), onClick = onContinue)
-      ChoiceCard(text = "2. Tell me about yourself.", modifier = Modifier.weight(1f), onClick = onContinue)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { // Расстояние между левой и правой кнопкой.
+      ChoiceCard(text = "1. Что привело тебя сюда?", modifier = Modifier.weight(1f), onClick = onContinue)
+      ChoiceCard(text = "2. Расскажи о себе.", modifier = Modifier.weight(1f), onClick = onContinue)
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-      ChoiceCard(text = "3. Want something special?", modifier = Modifier.weight(1f), onClick = onContinue)
-      ChoiceCard(text = "4. Enjoy the evening.", modifier = Modifier.weight(1f), onClick = onContinue)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+      ChoiceCard(text = "3. Хочешь чего-нибудь особенного?", modifier = Modifier.weight(1f), onClick = onContinue)
+      ChoiceCard(text = "4. Приятного вечера.", modifier = Modifier.weight(1f), onClick = onContinue)
     }
   }
 }
@@ -219,23 +189,43 @@ private fun ChoiceCard(
   modifier: Modifier = Modifier,
 ) {
   Box(
-    modifier = modifier.clickable(onClick = onClick),
+    modifier = modifier.height(46.dp).clickable(onClick = onClick), // Высота одной кнопки-вопроса.
   ) {
     Image(
       painter = painterResource(R.drawable.dialogue_choice_panel),
       contentDescription = null,
-      modifier = Modifier.fillMaxWidth(),
-      contentScale = ContentScale.FillWidth,
+      modifier = Modifier.fillMaxSize(),
+      contentScale = ContentScale.FillBounds,
     )
+    ChoiceMask()
     Text(
       text = text,
-      modifier = Modifier.align(Alignment.CenterStart).padding(horizontal = 26.dp, vertical = 20.dp),
+      modifier = Modifier.align(Alignment.CenterStart).padding(horizontal = 18.dp, vertical = 8.dp), // Отступы текста внутри кнопки.
       color = Color(0xFFF1E4DB),
-      style = MaterialTheme.typography.titleMedium,
+      style = MaterialTheme.typography.titleSmall.copy(
+        fontSize = 10.sp, // Размер текста варианта.
+        lineHeight = 10.sp, // Межстрочный интервал варианта.
+      ),
       fontWeight = FontWeight.Medium,
       textAlign = TextAlign.Start,
+      maxLines = 2,
+      overflow = TextOverflow.Ellipsis,
     )
   }
+}
+
+@Composable
+private fun BoxScope.ChoiceMask() {
+  Box(
+    modifier = Modifier
+      .align(Alignment.Center)
+      .fillMaxSize()
+      .padding(horizontal = 18.dp, vertical = 10.dp) // Маска поверх текста, вшитого в ассет.
+      .background(
+        color = Color(0xFF2A2030).copy(alpha = 0.94f),
+        shape = RoundedCornerShape(10.dp),
+      ),
+  )
 }
 
 @Preview(showBackground = true, widthDp = 960, heightDp = 540)
