@@ -70,7 +70,7 @@ private fun DialogueSceneOverlay(
     Image(
       painter = painterResource(R.drawable.dialogue_status_bar),
       contentDescription = null,
-      modifier = Modifier.width(246.dp).align(Alignment.TopEnd).offset(x = (-58).dp, y = 6.dp),
+      modifier = Modifier.width(130.dp).align(Alignment.TopEnd).offset(x = (-58).dp, y = 6.dp),
       contentScale = ContentScale.FillWidth,
     )
     Image(
@@ -172,12 +172,12 @@ private fun DialogueChoices(
     verticalArrangement = Arrangement.spacedBy(5.dp), // Расстояние между верхним и нижним рядом.
   ) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { // Расстояние между левой и правой кнопкой.
-      ChoiceCard(text = "1. What brought you here?", modifier = Modifier.weight(1f), onClick = onContinue)
-      ChoiceCard(text = "2. Tell me about yourself.", modifier = Modifier.weight(1f), onClick = onContinue)
+      ChoiceCard(text = "1. Что привело тебя сюда?", modifier = Modifier.weight(1f), onClick = onContinue)
+      ChoiceCard(text = "2. Расскажи о себе.", modifier = Modifier.weight(1f), onClick = onContinue)
     }
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-      ChoiceCard(text = "3. Want something special?", modifier = Modifier.weight(1f), onClick = onContinue)
-      ChoiceCard(text = "4. Enjoy the evening.", modifier = Modifier.weight(1f), onClick = onContinue)
+      ChoiceCard(text = "3. Хочешь чего-нибудь особенного?", modifier = Modifier.weight(1f), onClick = onContinue)
+      ChoiceCard(text = "4. Приятного вечера.", modifier = Modifier.weight(1f), onClick = onContinue)
     }
   }
 }
