@@ -11,19 +11,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,29 +36,38 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.moonbrewtavern.data.DefaultDataRepository
 import com.example.moonbrewtavern.domain.model.GameScenario
-import com.example.moonbrewtavern.domain.model.Ingredient
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
+
+private data class BrewTone(
+  val label: String,
+  val color: Color,
+)
 
 @Composable
 fun BrewingScreen(
   scenario: GameScenario,
-  selectedIngredientIds: List<String>,
-  onIngredientToggle: (String) -> Unit,
   onServe: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  val colors = MaterialTheme.colorScheme
-  val selectedIngredients = scenario.availableIngredients.filter { it.id in selectedIngredientIds }
-  val requiredIds = scenario.recipe.requiredIngredients.map { it.id }.toSet()
-  val matchedCount = selectedIngredients.count { it.id in requiredIds }
-  val canServe = selectedIngredientIds.size == 3
-  val statusText =
+  val tones =
+    listOf(
+      BrewTone("Лунный синий", Color(0xFF6F8DFF)),
+      BrewTone("Травяной зеленый", Color(0xFF6FAF7C)),
+      BrewTone("Ягодный розовый", Color(0xFFC972A9)),
+      BrewTone("Янтарный", Color(0xFFCC8C49)),
+    )
+  var ingredientsAdded by rememberSaveable { mutableStateOf(false) }
+  var stirCount by rememberSaveable { mutableIntStateOf(0) }
+  var selectedToneIndex by rememberSaveable { mutableIntStateOf(-1) }
+
+  val selectedTone = tones.getOrNull(selectedToneIndex)
+  val isReady = ingredientsAdded && stirCount > 0 && selectedTone != null
+  val progressText =
     when {
-      selectedIngredientIds.isEmpty() -> "Choose three ingredients for Lyra's order."
-      selectedIngredientIds.size < 3 -> "One more careful pick and the pour is ready."
-      selectedIngredientIds.toSet() == requiredIds -> "This reads clean, bright, and exact."
-      matchedCount >= 2 -> "Close. The bones of the drink are right, but one note is off."
-      else -> "This will taste improvised. Brave, but probably not what she asked for."
+      !ingredientsAdded -> "Сначала засыпаем готовые ингредиенты из выбранного рецепта."
+      stirCount == 0 -> "Основа уже в котле. Теперь нужно хотя бы немного перемешать."
+      selectedTone == null -> "Смесь ожила. Осталось выбрать оттенок напитка."
+      else -> "Напиток собран. Можно подавать."
     }
 
   Box(
@@ -66,61 +77,52 @@ fun BrewingScreen(
         .background(
           Brush.verticalGradient(
             listOf(
-              Color(0xFFECE0D1),
-              Color(0xFFF8F2E9),
+              Color(0xFF201512),
+              Color(0xFF2A1B17),
+              Color(0xFF160F0D),
             ),
           ),
         )
         .padding(22.dp),
   ) {
     Column(
-      modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-      verticalArrangement = Arrangement.spacedBy(18.dp),
+      modifier = Modifier.fillMaxSize(),
+      verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
       BrewingHeader(scenario = scenario)
 
       Row(
-        modifier = Modifier.fillMaxWidth().height(320.dp),
+        modifier = Modifier.fillMaxWidth().weight(1f),
         horizontalArrangement = Arrangement.spacedBy(18.dp),
       ) {
-        Column(
-          modifier = Modifier.weight(0.9f),
-          verticalArrangement = Arrangement.spacedBy(18.dp),
-        ) {
-          OrderCard(scenario = scenario)
-          GuestCard(scenario = scenario)
-        }
-
-        WorkbenchCard(
+        RecipeReminderCard(
           scenario = scenario,
-          selectedIngredients = selectedIngredients,
-          matchedCount = matchedCount,
-          modifier = Modifier.weight(1.1f),
+          ingredientsAdded = ingredientsAdded,
+          modifier = Modifier.weight(0.92f),
         )
-
-        Column(
-          modifier = Modifier.weight(0.88f),
-          verticalArrangement = Arrangement.spacedBy(18.dp),
-        ) {
-          CurrentPourCard(
-            selectedIngredients = selectedIngredients,
-            matchedCount = matchedCount,
-            statusText = statusText,
-            totalRequired = scenario.recipe.requiredIngredients.size,
-          )
-        }
+        CauldronSceneCard(
+          selectedTone = selectedTone,
+          stirCount = stirCount,
+          ingredientsAdded = ingredientsAdded,
+          modifier = Modifier.weight(1.12f),
+        )
+        BrewingControlsCard(
+          tones = tones,
+          selectedToneIndex = selectedToneIndex,
+          ingredientsAdded = ingredientsAdded,
+          stirCount = stirCount,
+          progressText = progressText,
+          onAddIngredients = { ingredientsAdded = true },
+          onStir = { if (ingredientsAdded && stirCount < 3) stirCount += 1 },
+          onSelectTone = { selectedToneIndex = it },
+          modifier = Modifier.weight(0.96f),
+        )
       }
 
-      IngredientShelf(
-        scenario = scenario,
-        selectedIngredientIds = selectedIngredientIds,
-        onIngredientToggle = onIngredientToggle,
-        modifier = Modifier.heightIn(min = 220.dp),
-      )
-
-      ActionBar(
-        selectedCount = selectedIngredientIds.size,
-        canServe = canServe,
+      ServeActionBar(
+        isReady = isReady,
+        selectedTone = selectedTone?.label,
+        stirCount = stirCount,
         onServe = onServe,
       )
     }
@@ -129,159 +131,156 @@ fun BrewingScreen(
 
 @Composable
 private fun BrewingHeader(scenario: GameScenario) {
-  val colors = MaterialTheme.colorScheme
   Row(
     modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.spacedBy(16.dp),
+    horizontalArrangement = Arrangement.SpaceBetween,
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
       Surface(
         shape = RoundedCornerShape(999.dp),
-        color = colors.secondaryContainer,
+        color = Color(0xFF4B352C),
       ) {
         Text(
-          text = "Brewing Station",
+          text = "Приготовление",
           modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+          color = Color(0xFFF5E6D2),
           style = MaterialTheme.typography.labelLarge,
-          color = colors.onSecondaryContainer,
           fontWeight = FontWeight.SemiBold,
         )
       }
       Text(
         text = scenario.recipe.name,
         style = MaterialTheme.typography.displaySmall,
-        color = Color(0xFF21372E),
+        color = Color(0xFFF5E6D2),
         fontWeight = FontWeight.Bold,
       )
       Text(
-        text = "Build the drink in one continuous scene: order on the left, mixing in the middle, judgment on the right.",
+        text = "На этом экране мы уже не ищем рецепт, а собираем готовую смесь: добавляем ингредиенты, мешаем и выбираем оттенок напитка.",
         style = MaterialTheme.typography.bodyLarge,
-        color = colors.onSurfaceVariant,
+        color = Color(0xFFD5BFAF),
       )
     }
 
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-      StatPill(label = "Night", value = scenario.initialState.day.toString())
-      StatPill(label = "Gold", value = scenario.initialState.gold.toString())
-      StatPill(label = "Rep", value = scenario.initialState.reputation.toString())
+      StatTile(label = "Ночь", value = scenario.initialState.day.toString())
+      StatTile(label = "Золото", value = scenario.initialState.gold.toString())
+      StatTile(label = "Реп", value = scenario.initialState.reputation.toString())
     }
   }
 }
 
 @Composable
-private fun OrderCard(scenario: GameScenario) {
-  Surface(
-    shape = RoundedCornerShape(28.dp),
-    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-    tonalElevation = 2.dp,
-  ) {
-    Column(
-      modifier = Modifier.fillMaxWidth().padding(22.dp),
-      verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-      SectionEyebrow("ORDER")
-      Text(
-        text = "\"${scenario.visitor.requestLine}\"",
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.SemiBold,
-      )
-      Text(
-        text = scenario.brewingHint,
-        style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-      )
-      Spacer(Modifier.height(6.dp))
-      FlavorLine(label = "Target profile", value = scenario.visitor.favoriteFlavor)
-      FlavorLine(label = "Recipe", value = scenario.recipe.name)
-    }
-  }
-}
-
-@Composable
-private fun GuestCard(scenario: GameScenario) {
-  Surface(
-    shape = RoundedCornerShape(28.dp),
-    color = Color(0xFF2F5B4A),
-  ) {
-    Row(
-      modifier = Modifier.fillMaxWidth().padding(22.dp),
-      horizontalArrangement = Arrangement.spacedBy(16.dp),
-      verticalAlignment = Alignment.CenterVertically,
-    ) {
-      Box(
-        modifier =
-          Modifier
-            .size(72.dp)
-            .clip(CircleShape)
-            .background(
-              Brush.linearGradient(
-                listOf(
-                  Color(0xFFF1C9B4),
-                  Color(0xFFAA6E56),
-                ),
-              ),
-            ),
-        contentAlignment = Alignment.Center,
-      ) {
-        Text(
-          text = scenario.visitor.name.take(1),
-          style = MaterialTheme.typography.headlineMedium,
-          color = Color.White,
-          fontWeight = FontWeight.Bold,
-        )
-      }
-      Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-          text = scenario.visitor.name,
-          style = MaterialTheme.typography.titleLarge,
-          color = Color.White,
-          fontWeight = FontWeight.Bold,
-        )
-        Text(
-          text = scenario.visitor.title,
-          style = MaterialTheme.typography.bodyMedium,
-          color = Color(0xFFD9E7DF),
-        )
-        Text(
-          text = "Mood: ${scenario.visitor.mood.name}",
-          style = MaterialTheme.typography.bodyMedium,
-          color = Color(0xFFD9E7DF),
-        )
-      }
-    }
-  }
-}
-
-@Composable
-private fun WorkbenchCard(
+private fun RecipeReminderCard(
   scenario: GameScenario,
-  selectedIngredients: List<Ingredient>,
-  matchedCount: Int,
+  ingredientsAdded: Boolean,
   modifier: Modifier = Modifier,
 ) {
-  val colors = MaterialTheme.colorScheme
+  Surface(
+    modifier = modifier,
+    shape = RoundedCornerShape(30.dp),
+    color = Color(0xFF261A17),
+  ) {
+    Column(
+      modifier = Modifier.fillMaxSize().padding(22.dp),
+      verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+      Text(
+        text = "Что идет в котел",
+        style = MaterialTheme.typography.titleLarge,
+        color = Color(0xFFF5E6D2),
+        fontWeight = FontWeight.Bold,
+      )
+      Text(
+        text = scenario.recipe.description,
+        style = MaterialTheme.typography.bodyLarge,
+        color = Color(0xFFD5BFAF),
+      )
+
+      scenario.recipe.requiredIngredients.forEachIndexed { index, ingredient ->
+        Surface(
+          shape = RoundedCornerShape(18.dp),
+          color = Color(0xFF33231E),
+        ) {
+          Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Column(
+              modifier = Modifier.weight(1f),
+              verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+              Text(
+                text = "${index + 1}. ${ingredient.name}",
+                style = MaterialTheme.typography.titleSmall,
+                color = Color(0xFFF5E6D2),
+                fontWeight = FontWeight.SemiBold,
+              )
+              Text(
+                text = ingredient.flavorNote,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFFD5BFAF),
+              )
+            }
+            Text(
+              text = "x${ingredient.stockCount}",
+              style = MaterialTheme.typography.titleMedium,
+              color = if (ingredient.stockCount > 0) Color(0xFFB9D7A8) else Color(0xFFD98686),
+              fontWeight = FontWeight.Bold,
+            )
+          }
+        }
+      }
+
+      Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = if (ingredientsAdded) Color(0xFF33503E) else Color(0xFF3A2A25),
+      ) {
+        Text(
+          text =
+            if (ingredientsAdded) {
+              "Все нужные ингредиенты уже отправлены в котел."
+            } else {
+              "Ингредиенты пока только на полке. Добавь их одной командой справа."
+            },
+          modifier = Modifier.fillMaxWidth().padding(16.dp),
+          style = MaterialTheme.typography.bodyMedium,
+          color = Color(0xFFF5E6D2),
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun CauldronSceneCard(
+  selectedTone: BrewTone?,
+  stirCount: Int,
+  ingredientsAdded: Boolean,
+  modifier: Modifier = Modifier,
+) {
+  val liquidColor = selectedTone?.color ?: Color(0xFF5C6C8B)
   Surface(
     modifier = modifier,
     shape = RoundedCornerShape(32.dp),
-    color = Color(0xFF264337),
+    color = Color(0xFF1E1715),
   ) {
     Column(
-      modifier = Modifier.fillMaxSize().padding(24.dp),
+      modifier = Modifier.fillMaxSize().padding(22.dp),
       verticalArrangement = Arrangement.SpaceBetween,
     ) {
-      Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionEyebrow("WORKBENCH", contentColor = Color(0xFFDCE9E1))
+      Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-          text = "Copper cauldron",
-          style = MaterialTheme.typography.headlineSmall,
-          color = Color.White,
+          text = "Котел",
+          style = MaterialTheme.typography.titleLarge,
+          color = Color(0xFFF5E6D2),
           fontWeight = FontWeight.Bold,
         )
         Text(
-          text = "The selected ingredients should feel like they are entering one shared vessel, not just flipping cards in a form.",
-          style = MaterialTheme.typography.bodyLarge,
-          color = Color(0xFFDCE9E1),
+          text = "Здесь мы просто разыгрываем сам ритуал: ингредиенты уже известны, осталось собрать подачу.",
+          style = MaterialTheme.typography.bodyMedium,
+          color = Color(0xFFD5BFAF),
         )
       }
 
@@ -289,49 +288,138 @@ private fun WorkbenchCard(
         modifier = Modifier.fillMaxWidth().weight(1f),
         contentAlignment = Alignment.Center,
       ) {
-        Box(
-          modifier =
-            Modifier
-              .size(250.dp)
-              .clip(CircleShape)
-              .background(
-                Brush.radialGradient(
-                  listOf(
-                    Color(0xFF5F8D7B),
-                    Color(0xFF1D2F28),
-                  ),
-                ),
-              )
-              .border(10.dp, Color(0xFF8C6042), CircleShape),
-        )
-
         Column(
           horizontalAlignment = Alignment.CenterHorizontally,
-          verticalArrangement = Arrangement.spacedBy(10.dp),
+          verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-          if (selectedIngredients.isEmpty()) {
+          Box(
+            modifier =
+              Modifier
+                .size(260.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF2C1D19))
+                .border(14.dp, Color(0xFF5A3B2A), CircleShape),
+            contentAlignment = Alignment.Center,
+          ) {
+            Box(
+              modifier =
+                Modifier
+                  .size(198.dp)
+                  .clip(CircleShape)
+                  .background(
+                    Brush.radialGradient(
+                      listOf(
+                        liquidColor.copy(alpha = 0.95f),
+                        liquidColor.copy(alpha = 0.72f),
+                        Color(0xFF1B2333),
+                      ),
+                    ),
+                  ),
+            )
             Text(
-              text = "Empty pot",
-              style = MaterialTheme.typography.headlineSmall,
+              text =
+                when {
+                  !ingredientsAdded -> "Пусто"
+                  stirCount == 0 -> "Основа готова"
+                  else -> "Помешано: $stirCount/3"
+                },
+              style = MaterialTheme.typography.titleMedium,
               color = Color.White,
               fontWeight = FontWeight.SemiBold,
             )
-            Text(
-              text = "Select ingredients below",
-              style = MaterialTheme.typography.bodyMedium,
-              color = Color(0xFFDCE9E1),
-            )
-          } else {
-            selectedIngredients.forEach { ingredient ->
-              Surface(
-                shape = RoundedCornerShape(999.dp),
-                color = colors.secondaryContainer.copy(alpha = 0.92f),
-              ) {
+          }
+
+          Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            StepBadge(step = "1", label = if (ingredientsAdded) "Добавлено" else "Не добавлено")
+            StepBadge(step = "2", label = "Мешаем x$stirCount")
+            StepBadge(step = "3", label = selectedTone?.label ?: "Без оттенка")
+          }
+        }
+      }
+
+      Text(
+        text = "Цвет пока влияет только на визуальный образ напитка. Позже сюда можно привязать вкус, настроение гостя или редкие эффекты.",
+        style = MaterialTheme.typography.bodySmall,
+        color = Color(0xFFB79E8D),
+      )
+    }
+  }
+}
+
+@Composable
+private fun BrewingControlsCard(
+  tones: List<BrewTone>,
+  selectedToneIndex: Int,
+  ingredientsAdded: Boolean,
+  stirCount: Int,
+  progressText: String,
+  onAddIngredients: () -> Unit,
+  onStir: () -> Unit,
+  onSelectTone: (Int) -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  Surface(
+    modifier = modifier,
+    shape = RoundedCornerShape(30.dp),
+    color = Color(0xFF261A17),
+  ) {
+    Column(
+      modifier = Modifier.fillMaxSize().padding(22.dp),
+      verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+      Text(
+        text = "Шаги",
+        style = MaterialTheme.typography.titleLarge,
+        color = Color(0xFFF5E6D2),
+        fontWeight = FontWeight.Bold,
+      )
+
+      BrewingActionTile(
+        title = "1. Добавить ингредиенты",
+        subtitle = if (ingredientsAdded) "Все обязательные ингредиенты уже в котле." else "Перенеси в котел готовый набор из рецепта.",
+        active = ingredientsAdded,
+        onClick = onAddIngredients,
+      )
+      BrewingActionTile(
+        title = "2. Перемешать",
+        subtitle = if (!ingredientsAdded) "Сначала добавь ингредиенты." else "Сейчас: $stirCount / 3 перемешиваний",
+        active = stirCount > 0,
+        enabled = ingredientsAdded,
+        onClick = onStir,
+      )
+
+      Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+          text = "3. Выбери оттенок",
+          style = MaterialTheme.typography.titleMedium,
+          color = Color(0xFFF5E6D2),
+          fontWeight = FontWeight.SemiBold,
+        )
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+          tones.forEachIndexed { index, tone ->
+            Surface(
+              modifier =
+                Modifier
+                  .weight(1f)
+                  .height(60.dp)
+                  .clip(RoundedCornerShape(16.dp))
+                  .clickable { onSelectTone(index) }
+                  .border(
+                    width = if (selectedToneIndex == index) 2.dp else 1.dp,
+                    color = if (selectedToneIndex == index) Color(0xFFF2D28F) else Color(0xFF5F4638),
+                    shape = RoundedCornerShape(16.dp),
+                  ),
+              shape = RoundedCornerShape(16.dp),
+              color = tone.color.copy(alpha = 0.88f),
+            ) {
+              Box(contentAlignment = Alignment.Center) {
                 Text(
-                  text = ingredient.name,
-                  modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                  style = MaterialTheme.typography.bodyMedium,
-                  color = colors.onSecondaryContainer,
+                  text = tone.label,
+                  style = MaterialTheme.typography.labelMedium,
+                  color = Color.White,
                   fontWeight = FontWeight.SemiBold,
                 )
               }
@@ -341,144 +429,24 @@ private fun WorkbenchCard(
       }
 
       Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = Color.White.copy(alpha = 0.12f),
-      ) {
-        Row(
-          modifier = Modifier.fillMaxWidth().padding(16.dp),
-          horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-          FlavorLine(label = "Matched recipe notes", value = "$matchedCount / ${scenario.recipe.requiredIngredients.size}", valueColor = Color.White, labelColor = Color(0xFFDCE9E1))
-          FlavorLine(label = "Required", value = scenario.recipe.requiredIngredients.joinToString { it.name }, valueColor = Color.White, labelColor = Color(0xFFDCE9E1))
-        }
-      }
-    }
-  }
-}
-
-@Composable
-private fun CurrentPourCard(
-  selectedIngredients: List<Ingredient>,
-  matchedCount: Int,
-  statusText: String,
-  totalRequired: Int,
-) {
-  Surface(
-    shape = RoundedCornerShape(28.dp),
-    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-    tonalElevation = 2.dp,
-  ) {
-    Column(
-      modifier = Modifier.fillMaxWidth().padding(22.dp),
-      verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-      SectionEyebrow("CURRENT POUR")
-      Text(
-        text = if (selectedIngredients.isEmpty()) "Nothing selected yet" else "Tray is coming together",
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.Bold,
-      )
-      Text(
-        text = statusText,
-        style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-      )
-      Surface(
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFF34231E),
       ) {
         Column(
           modifier = Modifier.fillMaxWidth().padding(16.dp),
           verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-          FlavorLine(label = "Selected", value = "${selectedIngredients.size} / 3")
-          FlavorLine(label = "Recipe match", value = "$matchedCount / $totalRequired")
-        }
-      }
-      selectedIngredients.forEach { ingredient ->
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
           Text(
-            text = ingredient.name,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
-          )
-          Text(
-            text = ingredient.rarity.name,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        }
-      }
-    }
-  }
-}
-
-@Composable
-private fun IngredientShelf(
-  scenario: GameScenario,
-  selectedIngredientIds: List<String>,
-  onIngredientToggle: (String) -> Unit,
-  modifier: Modifier = Modifier,
-) {
-  Surface(
-    modifier = modifier,
-    shape = RoundedCornerShape(30.dp),
-    color = Color(0xFFF4ECDF),
-    tonalElevation = 1.dp,
-  ) {
-    Column(
-      modifier = Modifier.fillMaxWidth().padding(18.dp),
-      verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-      ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-          Text(
-            text = "Ingredient shelf",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-          )
-          Text(
-            text = "Pick exactly three. A correct drink needs cool clarity, warm finish, and a silver shimmer.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        }
-        Surface(
-          shape = RoundedCornerShape(999.dp),
-          color = MaterialTheme.colorScheme.tertiaryContainer,
-        ) {
-          Text(
-            text = "${selectedIngredientIds.size}/3 selected",
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            style = MaterialTheme.typography.labelLarge,
+            text = "Состояние напитка",
+            style = MaterialTheme.typography.titleSmall,
+            color = Color(0xFFF5E6D2),
             fontWeight = FontWeight.SemiBold,
           )
-        }
-      }
-
-      scenario.availableIngredients.chunked(3).forEach { rowIngredients ->
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-          rowIngredients.forEach { ingredient ->
-            val isSelected = ingredient.id in selectedIngredientIds
-            val canSelectMore = selectedIngredientIds.size < 3
-            IngredientShelfCard(
-              ingredient = ingredient,
-              selected = isSelected,
-              enabled = isSelected || canSelectMore,
-              modifier = Modifier.weight(1f),
-              onClick = { onIngredientToggle(ingredient.id) },
-            )
-          }
+          Text(
+            text = progressText,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFFD5BFAF),
+          )
         }
       }
     }
@@ -486,15 +454,90 @@ private fun IngredientShelf(
 }
 
 @Composable
-private fun ActionBar(
-  selectedCount: Int,
-  canServe: Boolean,
+private fun BrewingActionTile(
+  title: String,
+  subtitle: String,
+  active: Boolean,
+  enabled: Boolean = true,
+  onClick: () -> Unit,
+) {
+  val container =
+    when {
+      active -> Color(0xFF3A543F)
+      enabled -> Color(0xFF34231E)
+      else -> Color(0xFF2A1D19)
+    }
+  Surface(
+    modifier =
+      Modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(18.dp))
+        .clickable(enabled = enabled, onClick = onClick),
+    shape = RoundedCornerShape(18.dp),
+    color = container,
+  ) {
+    Column(
+      modifier = Modifier.fillMaxWidth().padding(16.dp),
+      verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+      Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        color = Color(0xFFF5E6D2),
+        fontWeight = FontWeight.SemiBold,
+      )
+      Text(
+        text = subtitle,
+        style = MaterialTheme.typography.bodySmall,
+        color = if (enabled) Color(0xFFD5BFAF) else Color(0xFF8D7366),
+      )
+    }
+  }
+}
+
+@Composable
+private fun StepBadge(
+  step: String,
+  label: String,
+) {
+  Surface(
+    shape = RoundedCornerShape(999.dp),
+    color = Color(0xFF34231E),
+  ) {
+    Row(
+      modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+      horizontalArrangement = Arrangement.spacedBy(8.dp),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Box(
+        modifier =
+          Modifier
+            .size(22.dp)
+            .clip(CircleShape)
+            .background(Color(0xFF8B6548)),
+        contentAlignment = Alignment.Center,
+      ) {
+        Text(text = step, color = Color.White, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+      }
+      Text(
+        text = label,
+        style = MaterialTheme.typography.labelLarge,
+        color = Color(0xFFF5E6D2),
+      )
+    }
+  }
+}
+
+@Composable
+private fun ServeActionBar(
+  isReady: Boolean,
+  selectedTone: String?,
+  stirCount: Int,
   onServe: () -> Unit,
 ) {
   Surface(
     shape = RoundedCornerShape(24.dp),
-    color = Color.White.copy(alpha = 0.92f),
-    tonalElevation = 2.dp,
+    color = Color(0xFF241A16),
   ) {
     Row(
       modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
@@ -503,24 +546,25 @@ private fun ActionBar(
     ) {
       Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-          text = if (canServe) "The tray is ready" else "Choose exactly three ingredients",
+          text = if (isReady) "Можно подавать напиток" else "Нужно закончить сборку напитка",
           style = MaterialTheme.typography.titleMedium,
+          color = Color(0xFFF5E6D2),
           fontWeight = FontWeight.SemiBold,
         )
         Text(
-          text = "$selectedCount / 3 selected",
+          text = "Перемешано: $stirCount/3 • Оттенок: ${selectedTone ?: "не выбран"}",
           style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          color = Color(0xFFD5BFAF),
         )
       }
 
       Button(
         onClick = onServe,
-        enabled = canServe,
+        enabled = isReady,
         modifier = Modifier.width(220.dp).height(54.dp),
       ) {
         Text(
-          text = "Serve the drink",
+          text = "Подать напиток",
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.SemiBold,
         )
@@ -530,139 +574,36 @@ private fun ActionBar(
 }
 
 @Composable
-private fun IngredientShelfCard(
-  ingredient: Ingredient,
-  selected: Boolean,
-  enabled: Boolean,
-  modifier: Modifier = Modifier,
-  onClick: () -> Unit,
-) {
-  val colors = MaterialTheme.colorScheme
-  val background =
-    when {
-      selected -> colors.primaryContainer
-      else -> Color.White
-    }
+private fun StatTile(label: String, value: String) {
   Surface(
-    modifier =
-      modifier
-        .clip(RoundedCornerShape(22.dp))
-        .clickable(enabled = enabled, onClick = onClick)
-        .border(
-          width = if (selected) 2.dp else 1.dp,
-          color = if (selected) colors.primary else Color(0xFFE2D8CA),
-          shape = RoundedCornerShape(22.dp),
-        ),
-    color = background,
     shape = RoundedCornerShape(22.dp),
+    color = Color(0xFF34231E),
   ) {
     Column(
-      modifier = Modifier.fillMaxWidth().padding(16.dp),
-      verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-      ) {
-        Text(
-          text = ingredient.name,
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Bold,
-        )
-        Box(
-          modifier =
-            Modifier
-              .size(12.dp)
-              .clip(CircleShape)
-              .background(
-                when (ingredient.rarity) {
-                  com.example.moonbrewtavern.domain.model.IngredientRarity.Common -> Color(0xFF7AA17F)
-                  com.example.moonbrewtavern.domain.model.IngredientRarity.Uncommon -> Color(0xFFB8784F)
-                  com.example.moonbrewtavern.domain.model.IngredientRarity.Rare -> Color(0xFF6A82C8)
-                },
-              ),
-        )
-      }
-      Text(
-        text = ingredient.flavorNote,
-        style = MaterialTheme.typography.bodyMedium,
-        color = colors.onSurfaceVariant,
-      )
-      Text(
-        text = if (selected) "Selected" else ingredient.rarity.name,
-        style = MaterialTheme.typography.labelLarge,
-        color = if (selected) colors.primary else colors.onSurfaceVariant,
-        fontWeight = FontWeight.SemiBold,
-      )
-    }
-  }
-}
-
-@Composable
-private fun StatPill(label: String, value: String) {
-  Surface(
-    shape = RoundedCornerShape(24.dp),
-    color = Color.White.copy(alpha = 0.85f),
-  ) {
-    Column(
-      modifier = Modifier.width(112.dp).padding(horizontal = 16.dp, vertical = 14.dp),
-      verticalArrangement = Arrangement.spacedBy(6.dp),
+      modifier = Modifier.width(108.dp).padding(horizontal = 14.dp, vertical = 12.dp),
+      verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
       Text(
         text = label,
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = Color(0xFFD5BFAF),
       )
       Text(
         text = value,
         style = MaterialTheme.typography.headlineSmall,
+        color = Color(0xFFF5E6D2),
         fontWeight = FontWeight.Bold,
       )
     }
   }
 }
 
-@Composable
-private fun SectionEyebrow(text: String, contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
-  Text(
-    text = text,
-    style = MaterialTheme.typography.labelLarge,
-    color = contentColor,
-    fontWeight = FontWeight.SemiBold,
-  )
-}
-
-@Composable
-private fun FlavorLine(
-  label: String,
-  value: String,
-  labelColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-  valueColor: Color = MaterialTheme.colorScheme.onSurface,
-) {
-  Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-    Text(
-      text = label,
-      style = MaterialTheme.typography.labelMedium,
-      color = labelColor,
-    )
-    Text(
-      text = value,
-      style = MaterialTheme.typography.bodyLarge,
-      color = valueColor,
-      fontWeight = FontWeight.Medium,
-    )
-  }
-}
-
-@Preview(showBackground = true, widthDp = 640, heightDp = 360)
+@Preview(showBackground = true, widthDp = 960, heightDp = 540)
 @Composable
 private fun BrewingScreenPreview() {
   MoonbrewTavernTheme {
     BrewingScreen(
       scenario = DefaultDataRepository().scenario,
-      selectedIngredientIds = listOf("moonmint", "emberzest"),
-      onIngredientToggle = {},
       onServe = {},
     )
   }

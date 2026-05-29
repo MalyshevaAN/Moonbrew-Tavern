@@ -7,6 +7,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object Dialogue : NavKey
 
+@Serializable data object RecipeBook : NavKey
+
 @Serializable data object Brewing : NavKey
 
 @Serializable data object Result : NavKey
