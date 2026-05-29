@@ -8,32 +8,45 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(primary = Purple80, secondary = PurpleGrey80, tertiary = Pink80)
+private val DarkColorScheme =
+  darkColorScheme(
+    primary = Moss80,
+    secondary = Clay80,
+    tertiary = Sage80,
+    background = Bark10,
+    surface = Bark20,
+    surfaceVariant = Color(0xFF3A322E),
+    primaryContainer = Color(0xFF264337),
+    secondaryContainer = Color(0xFF6F3D2B),
+    tertiaryContainer = Color(0xFF4A5A2E),
+  )
 
 private val LightColorScheme =
   lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40,
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+    primary = Moss40,
+    secondary = Clay40,
+    tertiary = Sage40,
+    background = Linen95,
+    surface = Color(0xFFFBF6F0),
+    surfaceVariant = Linen90,
+    primaryContainer = Color(0xFFD5E6DB),
+    secondaryContainer = Color(0xFFF2D7CA),
+    tertiaryContainer = Color(0xFFD8E2BC),
     onPrimary = Color.White,
     onSecondary = Color.White,
     onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    onBackground = Moss20,
+    onSurface = Moss20,
   )
 
 @Composable
 fun MoonbrewTavernTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
   // Dynamic color is available on Android 12+
-  dynamicColor: Boolean = true,
+  dynamicColor: Boolean = false,
   content: @Composable () -> Unit,
 ) {
   val colorScheme =
