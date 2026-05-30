@@ -133,10 +133,11 @@ fun GameStageLayout(
 private fun ProgressTrack(currentPhase: GamePhase) {
   val steps =
     listOf(
-      GamePhase.Tavern to "Tavern",
-      GamePhase.Dialogue to "Dialogue",
-      GamePhase.Brewing to "Brew",
-      GamePhase.Result to "Result",
+      GamePhase.Tavern to "Таверна",
+      GamePhase.Dialogue to "Диалог",
+      GamePhase.RecipeBook to "Рецепт",
+      GamePhase.Brewing to "Варка",
+      GamePhase.Result to "Итог",
     )
   Row(
     modifier = Modifier.fillMaxWidth(),

@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -19,6 +18,7 @@ import com.example.moonbrewtavern.ui.brewing.BrewingScreen
 import com.example.moonbrewtavern.ui.dialogue.DialogueScreen
 import com.example.moonbrewtavern.ui.main.MainScreen
 import com.example.moonbrewtavern.ui.main.MainScreenViewModel
+import com.example.moonbrewtavern.ui.recipebook.RecipeBookScreen
 import com.example.moonbrewtavern.ui.result.ResultScreen
 
 @Composable
@@ -26,7 +26,6 @@ fun MainNavigation() {
   val repository = remember { DefaultDataRepository() }
   val scenario = remember { repository.scenario }
   val backStack = rememberNavBackStack(Main)
-  val selectedIngredientIds = remember { mutableStateListOf<String>() }
   var brewResult by remember { mutableStateOf(repository.evaluateBrew(emptySet())) }
 
   NavDisplay(
@@ -44,23 +43,22 @@ fun MainNavigation() {
         entry<Dialogue> {
           DialogueScreen(
             scenario = scenario,
-            onContinue = { backStack.add(Brewing) },
+            onContinue = { backStack.add(RecipeBook) },
+            modifier = Modifier.safeDrawingPadding().padding(16.dp),
+          )
+        }
+        entry<RecipeBook> {
+          RecipeBookScreen(
+            scenario = scenario,
+            onStartBrewing = { backStack.add(Brewing) },
             modifier = Modifier.safeDrawingPadding().padding(16.dp),
           )
         }
         entry<Brewing> {
           BrewingScreen(
             scenario = scenario,
-            selectedIngredientIds = selectedIngredientIds,
-            onIngredientToggle = { ingredientId ->
-              if (ingredientId in selectedIngredientIds) {
-                selectedIngredientIds.remove(ingredientId)
-              } else if (selectedIngredientIds.size < 3) {
-                selectedIngredientIds.add(ingredientId)
-              }
-            },
-            onServe = {
-              brewResult = repository.evaluateBrew(selectedIngredientIds.toSet())
+            onServe = { selectedIds ->
+              brewResult = repository.evaluateBrew(selectedIds)
               backStack.add(Result)
             },
             modifier = Modifier.safeDrawingPadding().padding(16.dp),
@@ -71,7 +69,6 @@ fun MainNavigation() {
             scenario = scenario,
             brewResult = brewResult,
             onReturnToTavern = {
-              selectedIngredientIds.clear()
               brewResult = repository.evaluateBrew(emptySet())
               while (backStack.size > 1) {
                 backStack.removeLastOrNull()

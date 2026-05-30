@@ -5,6 +5,7 @@ data class Ingredient(
   val name: String,
   val rarity: IngredientRarity,
   val flavorNote: String,
+  val stockCount: Int = 0,
 )
 
 enum class IngredientRarity {
