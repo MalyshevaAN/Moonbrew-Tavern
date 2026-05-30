@@ -57,9 +57,8 @@ fun MainNavigation() {
         entry<Brewing> {
           BrewingScreen(
             scenario = scenario,
-            onServe = {
-              val exactRecipeIds = scenario.recipe.requiredIngredients.mapTo(linkedSetOf()) { it.id }
-              brewResult = repository.evaluateBrew(exactRecipeIds)
+            onServe = { selectedIds ->
+              brewResult = repository.evaluateBrew(selectedIds)
               backStack.add(Result)
             },
             modifier = Modifier.safeDrawingPadding().padding(16.dp),
