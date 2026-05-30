@@ -2,7 +2,6 @@
 .gradle/
 build/
 **/build/
-!gradle/wrapper/gradle-wrapper.jar
 
 # Android
 local.properties
@@ -19,6 +18,8 @@ captures/
 *.jar
 *.war
 *.ear
+
+!android-app/gradle/wrapper/gradle-wrapper.jar
 
 # IDE
 .idea/

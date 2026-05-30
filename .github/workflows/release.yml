@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Android Release Artifacts
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: android-app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew
+
+      - name: Build
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx2g -Dfile.encoding=UTF-8"
+        run: ./gradlew --no-daemon clean lintDebug testDebugUnitTest assembleRelease bundleRelease
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            android-app/app/build/outputs/apk/release/*.apk
+            android-app/app/build/outputs/bundle/release/*.aab
+            android-app/**/build/reports/**
