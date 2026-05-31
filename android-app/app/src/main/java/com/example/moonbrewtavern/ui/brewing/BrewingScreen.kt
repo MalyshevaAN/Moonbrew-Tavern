@@ -348,6 +348,13 @@ private fun CauldronStage(
     modifier = modifier,
     contentAlignment = Alignment.Center,
   ) {
+    val ingredientOffsets =
+      listOf(
+        Offset(-74f, -18f),
+        Offset(0f, -92f),
+        Offset(76f, -8f),
+      )
+
     Box(
       modifier =
         Modifier
@@ -385,32 +392,17 @@ private fun CauldronStage(
 
       selectedIngredients.forEachIndexed { index, ingredient ->
         val visual = ingredientVisualForIngredient(ingredient)
+        val ingredientOffset = ingredientOffsets.getOrElse(index) { Offset(0f, -48f) }
         Image(
           painter = painterResource(visual.iconRes),
           contentDescription = ingredient.name,
           modifier =
             Modifier
               .size(42.dp)
-              .align(
-                when (index) {
-                  0 -> Alignment.CenterStart
-                  1 -> Alignment.TopCenter
-                  else -> Alignment.CenterEnd
-                },
-              )
+              .align(Alignment.Center)
               .offset(
-                x =
-                  when (index) {
-                    0 -> 162.dp
-                    1 -> 0.dp
-                    else -> (-162).dp
-                  },
-                y =
-                  when (index) {
-                    0 -> (-24).dp
-                    1 -> (-118).dp
-                    else -> (-16).dp
-                  },
+                x = ingredientOffset.x.dp,
+                y = ingredientOffset.y.dp,
               ),
           contentScale = ContentScale.Fit,
         )
