@@ -34,8 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
-import com.example.moonbrewtavern.Dialogue
 import com.example.moonbrewtavern.R
+import com.example.moonbrewtavern.TavernRoom
 import com.example.moonbrewtavern.data.DefaultDataRepository
 import com.example.moonbrewtavern.domain.model.GameScenario
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
@@ -54,7 +54,7 @@ fun MainScreen(
     is MainScreenUiState.Success ->
       MainScreen(
         scenario = (state as MainScreenUiState.Success).scenario,
-        onStartDialogue = { onItemClick(Dialogue) },
+        onStartDialogue = { onItemClick(TavernRoom) },
         modifier = modifier,
       )
     is MainScreenUiState.Error -> ErrorMainScreen(throwableMessage = (state as MainScreenUiState.Error).throwable.message, modifier = modifier)

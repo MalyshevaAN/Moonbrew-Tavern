@@ -17,6 +17,7 @@ import com.example.moonbrewtavern.ui.main.MainScreen
 import com.example.moonbrewtavern.ui.main.MainScreenViewModel
 import com.example.moonbrewtavern.ui.recipebook.RecipeBookScreen
 import com.example.moonbrewtavern.ui.result.ResultScreen
+import com.example.moonbrewtavern.ui.tavernroom.TavernRoomScreen
 
 @Composable
 fun MainNavigation() {
@@ -35,6 +36,13 @@ fun MainNavigation() {
             onItemClick = { navKey -> backStack.add(navKey) },
             modifier = Modifier,
             viewModel = viewModel { MainScreenViewModel(repository) },
+          )
+        }
+        entry<TavernRoom> {
+          TavernRoomScreen(
+            onGuestClick = { backStack.add(Dialogue) },
+            onBackToStreet = { backStack.removeLastOrNull() },
+            modifier = Modifier,
           )
         }
         entry<Dialogue> {
