@@ -34,11 +34,13 @@ import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
 @Composable
 fun TavernRoomScreen(
   onGuestClick: () -> Unit,
+  onBackToStreet: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   Box(
     modifier = modifier.fillMaxSize(),
   ) {
+    // Общий фон внутренней таверны.
     Image(
       painter = painterResource(R.drawable.tavern_room_background),
       contentDescription = null,
@@ -46,15 +48,17 @@ fun TavernRoomScreen(
       contentScale = ContentScale.Crop,
     )
 
+    // Бармен за стойкой.
     Image(
       painter = painterResource(R.drawable.tavern_room_bartender),
       contentDescription = null,
-      modifier = Modifier.align(Alignment.TopCenter).offset(x = (-108).dp, y = 188.dp).width(158.dp),
+      modifier = Modifier.align(Alignment.TopCenter).offset(x = (-128).dp, y = 56.dp).width(86.dp),
       contentScale = ContentScale.FillWidth,
     )
 
     TavernRoomOverlay(
       onGuestClick = onGuestClick,
+      onBackToStreet = onBackToStreet,
       modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 14.dp),
     )
   }
@@ -63,52 +67,65 @@ fun TavernRoomScreen(
 @Composable
 private fun TavernRoomOverlay(
   onGuestClick: () -> Unit,
+  onBackToStreet: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   Box(modifier = modifier) {
+    // Левая верхняя панель задач.
     Image(
       painter = painterResource(R.drawable.tavern_room_task_panel),
       contentDescription = null,
-      modifier = Modifier.width(152.dp).align(Alignment.TopStart),
+      modifier = Modifier.width(148.dp).align(Alignment.TopStart).offset(y = 6.dp),
       contentScale = ContentScale.FillWidth,
     )
 
+    // Кнопка возврата на уличную сцену.
+    StreetBackButton(
+      onClick = onBackToStreet,
+      modifier = Modifier.align(Alignment.TopStart).offset(x = 4.dp, y = 150.dp),
+    )
+
+    // Верхняя плашка с ресурсами.
     Image(
       painter = painterResource(R.drawable.tavern_room_resource_bar),
       contentDescription = null,
-      modifier = Modifier.width(318.dp).align(Alignment.TopEnd).offset(x = (-96).dp),
+      modifier = Modifier.width(302.dp).align(Alignment.TopEnd).offset(x = (-92).dp, y = 8.dp),
       contentScale = ContentScale.FillWidth,
     )
 
+    // Иконки быстрых действий справа сверху.
     Row(
-      modifier = Modifier.align(Alignment.TopEnd),
-      horizontalArrangement = Arrangement.spacedBy(12.dp),
+      modifier = Modifier.align(Alignment.TopEnd).offset(y = 4.dp),
+      horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
       IconTile(R.drawable.tavern_room_storage_icon, "Склад")
       IconTile(R.drawable.tavern_room_upgrades_icon, "Улучшения")
     }
 
+    // Левый гость за столом.
     GuestAtTable(
       guestRes = R.drawable.tavern_room_guest_one,
       statusRes = R.drawable.tavern_room_status_drinking,
       statusLabel = "Пьет",
-      modifier = Modifier.align(Alignment.BottomStart).offset(x = 94.dp, y = (-18).dp),
+      modifier = Modifier.align(Alignment.BottomStart).offset(x = 118.dp, y = (-38).dp),
     )
 
+    // Центральный гость: это текущая интерактивная Лира.
     GuestAtTable(
       guestRes = R.drawable.tavern_room_guest_two,
       statusRes = R.drawable.tavern_room_status_wants_beer,
       statusLabel = "Лира ждет заказ",
       highlighted = true,
       onClick = onGuestClick,
-      modifier = Modifier.align(Alignment.BottomCenter).offset(x = (-18).dp, y = (-8).dp),
+      modifier = Modifier.align(Alignment.BottomCenter).offset(x = (-16).dp, y = (-54).dp),
     )
 
+    // Правый гость за столом.
     GuestAtTable(
       guestRes = R.drawable.tavern_room_guest_three,
       statusRes = R.drawable.tavern_room_status_wants_leave,
       statusLabel = "Хочет уйти",
-      modifier = Modifier.align(Alignment.BottomEnd).offset(x = (-94).dp, y = (-20).dp),
+      modifier = Modifier.align(Alignment.BottomEnd).offset(x = (-116).dp, y = (-34).dp),
     )
   }
 }
@@ -119,10 +136,11 @@ private fun IconTile(
   label: String,
 ) {
   Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    // Маленькая квадратная кнопка в правом верхнем углу.
     Box(
       modifier =
         Modifier
-          .size(48.dp)
+          .size(44.dp)
           .clip(RoundedCornerShape(12.dp))
           .background(Color(0xAA2A1E1A))
           .border(1.dp, Color(0xFF795D45), RoundedCornerShape(12.dp)),
@@ -131,10 +149,34 @@ private fun IconTile(
       Image(
         painter = painterResource(drawable),
         contentDescription = label,
-        modifier = Modifier.size(26.dp),
+        modifier = Modifier.size(22.dp),
         contentScale = ContentScale.Fit,
       )
     }
+  }
+}
+
+@Composable
+private fun StreetBackButton(
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  // Простая кнопка возврата на уличную сцену.
+  Box(
+    modifier =
+      modifier
+        .clip(RoundedCornerShape(999.dp))
+        .background(Color(0xD22A1D18))
+        .border(1.dp, Color(0xFF7C6048), RoundedCornerShape(999.dp))
+        .clickable(onClick = onClick)
+        .padding(horizontal = 12.dp, vertical = 7.dp),
+  ) {
+    Text(
+      text = "На улицу",
+      color = Color(0xFFF3E5C9),
+      style = MaterialTheme.typography.labelLarge,
+      fontWeight = FontWeight.SemiBold,
+    )
   }
 }
 
@@ -151,10 +193,11 @@ private fun GuestAtTable(
     modifier = modifier,
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
+    // Кружок-статус над головой гостя.
     Box(
       modifier =
         Modifier
-          .size(56.dp)
+          .size(if (highlighted) 44.dp else 40.dp)
           .clip(CircleShape)
           .background(Color(0xCC281B18))
           .border(
@@ -167,11 +210,12 @@ private fun GuestAtTable(
       Image(
         painter = painterResource(statusRes),
         contentDescription = statusLabel,
-        modifier = Modifier.size(34.dp),
+        modifier = Modifier.size(if (highlighted) 26.dp else 22.dp),
         contentScale = ContentScale.Fit,
       )
     }
 
+    // Сам спрайт гостя за столом.
     Box(
       modifier =
         Modifier
@@ -189,12 +233,13 @@ private fun GuestAtTable(
       Image(
         painter = painterResource(guestRes),
         contentDescription = statusLabel,
-        modifier = Modifier.width(if (highlighted) 150.dp else 132.dp),
+        modifier = Modifier.width(if (highlighted) 92.dp else 82.dp),
         contentScale = ContentScale.FillWidth,
       )
     }
 
     if (highlighted) {
+      // Подпись под активным гостем.
       Box(
         modifier =
           Modifier
@@ -206,7 +251,7 @@ private fun GuestAtTable(
         Text(
           text = "Лира",
           color = Color(0xFFF4E7C6),
-          style = MaterialTheme.typography.labelLarge,
+          style = MaterialTheme.typography.labelMedium,
           fontWeight = FontWeight.SemiBold,
         )
       }
@@ -218,7 +263,6 @@ private fun GuestAtTable(
 @Composable
 private fun TavernRoomScreenPreview() {
   MoonbrewTavernTheme {
-    TavernRoomScreen(onGuestClick = {})
+    TavernRoomScreen(onGuestClick = {}, onBackToStreet = {})
   }
 }
-э

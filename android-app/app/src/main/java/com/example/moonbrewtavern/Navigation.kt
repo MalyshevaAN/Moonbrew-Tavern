@@ -41,6 +41,7 @@ fun MainNavigation() {
         entry<TavernRoom> {
           TavernRoomScreen(
             onGuestClick = { backStack.add(Dialogue) },
+            onBackToStreet = { backStack.removeLastOrNull() },
             modifier = Modifier,
           )
         }
