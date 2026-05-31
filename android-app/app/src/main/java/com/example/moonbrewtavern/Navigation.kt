@@ -1,14 +1,11 @@
 package com.example.moonbrewtavern
 
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
@@ -44,14 +41,14 @@ fun MainNavigation() {
           DialogueScreen(
             scenario = scenario,
             onContinue = { backStack.add(RecipeBook) },
-            modifier = Modifier.safeDrawingPadding().padding(16.dp),
+            modifier = Modifier,
           )
         }
         entry<RecipeBook> {
           RecipeBookScreen(
             scenario = scenario,
             onStartBrewing = { backStack.add(Brewing) },
-            modifier = Modifier.safeDrawingPadding().padding(16.dp),
+            modifier = Modifier,
           )
         }
         entry<Brewing> {
@@ -61,7 +58,7 @@ fun MainNavigation() {
               brewResult = repository.evaluateBrew(selectedIds)
               backStack.add(Result)
             },
-            modifier = Modifier.safeDrawingPadding().padding(16.dp),
+            modifier = Modifier,
           )
         }
         entry<Result> {
@@ -74,7 +71,7 @@ fun MainNavigation() {
                 backStack.removeLastOrNull()
               }
             },
-            modifier = Modifier.safeDrawingPadding().padding(16.dp),
+            modifier = Modifier,
           )
         }
       },

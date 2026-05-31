@@ -1,10 +1,15 @@
 package com.example.moonbrewtavern.ui.brewing
 
+import android.os.SystemClock
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,28 +29,50 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.example.moonbrewtavern.R
 import com.example.moonbrewtavern.data.DefaultDataRepository
 import com.example.moonbrewtavern.domain.model.GameScenario
 import com.example.moonbrewtavern.domain.model.Ingredient
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
+import kotlin.math.roundToInt
 
 private data class BrewTone(
   val label: String,
   val color: Color,
+)
+
+private data class BrewIngredientVisual(
+  @DrawableRes val iconRes: Int,
+  val count: Int,
+  val label: String,
+)
+
+private data class DragState(
+  val ingredient: Ingredient,
+  val visual: BrewIngredientVisual,
+  val position: Offset,
 )
 
 @Composable
@@ -53,77 +81,100 @@ fun BrewingScreen(
   onServe: (Set<String>) -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  val ingredientVisuals = remember(scenario.availableIngredients) { ingredientVisualsForScenario(scenario) }
   val selectedIds = remember { mutableStateListOf<String>() }
-  var stirCount by rememberSaveable { mutableIntStateOf(0) }
-  var selectedToneIndex by rememberSaveable { mutableIntStateOf(-1) }
+  var selectedToneIndex by rememberSaveable { mutableStateOf(-1) }
+  var dragState by remember { mutableStateOf<DragState?>(null) }
+  var cauldronBounds by remember { mutableStateOf<Rect?>(null) }
+  var stirrerOffset by remember { mutableStateOf(Offset.Zero) }
+  var stirBaseMs by rememberSaveable { mutableLongStateOf(0L) }
+  var stirDragStartMs by remember { mutableStateOf<Long?>(null) }
 
   val tones =
     listOf(
       BrewTone("Синий", Color(0xFF6678F1)),
-      BrewTone("Мятный", Color(0xFF7CBDA0)),
+      BrewTone("Травяной", Color(0xFF88B48D)),
       BrewTone("Розовый", Color(0xFFC779B2)),
       BrewTone("Фиалковый", Color(0xFF9B76D6)),
+      BrewTone("Лиловый", Color(0xFF6E6FD4)),
     )
   val selectedTone = tones.getOrNull(selectedToneIndex)
-  val canAddMore = selectedIds.size < scenario.recipe.requiredIngredients.size
-  val canHeat = selectedIds.isNotEmpty()
-  val canServe = selectedIds.size == scenario.recipe.requiredIngredients.size && stirCount > 0 && selectedTone != null
   val selectedIngredients = scenario.availableIngredients.filter { it.id in selectedIds }
+  val canAddMore = selectedIds.size < 3
+  val stirElapsedMs = currentStirElapsedMs(stirBaseMs, stirDragStartMs)
+  val stirProgress = (stirElapsedMs / 2000f).coerceIn(0f, 1f)
+  val isStirred = stirElapsedMs >= 2000L
+  val canStir = selectedIngredients.isNotEmpty()
+  val canServe = selectedIds.size == 3 && isStirred && selectedTone != null
 
-  Box(
-    modifier =
-      modifier
-        .fillMaxSize()
-        .background(
-          Brush.verticalGradient(
-            listOf(
-              Color(0xFF1A100D),
-              Color(0xFF221412),
-              Color(0xFF140C0B),
-            ),
-          ),
-        )
-        .padding(18.dp),
-  ) {
-    Column(
+  Box(modifier = modifier.fillMaxSize()) {
+    Image(
+      painter = painterResource(R.drawable.brew_scene_background),
+      contentDescription = null,
       modifier = Modifier.fillMaxSize(),
-      verticalArrangement = Arrangement.spacedBy(14.dp),
+      contentScale = ContentScale.Crop,
+    )
+
+    Column(
+      modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp),
+      verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
       BrewingTopBar()
 
       Row(
         modifier = Modifier.fillMaxWidth().weight(1f),
-        horizontalArrangement = Arrangement.spacedBy(18.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
       ) {
         IngredientRack(
-          scenario = scenario,
+          visuals = ingredientVisuals,
           selectedIds = selectedIds,
-          onIngredientClick = { ingredient ->
-            if (ingredient.id in selectedIds) {
-              selectedIds.remove(ingredient.id)
-            } else if (canAddMore) {
+          canAddMore = canAddMore,
+          onIngredientDropped = { ingredient ->
+            if (ingredient.id !in selectedIds && selectedIds.size < 3) {
               selectedIds.add(ingredient.id)
             }
           },
-          modifier = Modifier.width(170.dp).fillMaxHeight(),
+          onDragStateChange = { dragState = it },
+          cauldronBounds = cauldronBounds,
+          modifier = Modifier.width(114.dp).fillMaxHeight(),
         )
 
         CauldronStage(
           selectedIngredients = selectedIngredients,
-          stirCount = stirCount,
           selectedTone = selectedTone,
+          stirProgress = stirProgress,
+          stirrerOffset = stirrerOffset,
+          canStir = canStir,
+          onCauldronBoundsChange = { cauldronBounds = it },
+          onStirDragStart = {
+            if (canStir && !isStirred && stirDragStartMs == null) {
+              stirDragStartMs = SystemClock.elapsedRealtime()
+            }
+          },
+          onStirDrag = { delta ->
+            if (canStir && !isStirred) {
+              stirrerOffset = Offset(
+                x = (stirrerOffset.x + delta.x).coerceIn(-42f, 42f),
+                y = (stirrerOffset.y + delta.y).coerceIn(-24f, 24f),
+              )
+            }
+          },
+          onStirDragEnd = {
+            stirDragStartMs?.let { startedAt ->
+              stirBaseMs += (SystemClock.elapsedRealtime() - startedAt)
+            }
+            stirDragStartMs = null
+          },
           modifier = Modifier.weight(1f).fillMaxHeight(),
         )
 
         BrewingStepsPanel(
           selectedCount = selectedIds.size,
-          stirCount = stirCount,
+          stirProgress = stirProgress,
           selectedTone = selectedTone,
-          canHeat = canHeat,
-          onStir = { if (canHeat && stirCount < 3) stirCount += 1 },
-          onServe = { onServe(selectedIds.toSet()) },
           canServe = canServe,
-          modifier = Modifier.width(290.dp).fillMaxHeight(),
+          onServe = { onServe(selectedIds.toSet()) },
+          modifier = Modifier.width(266.dp).fillMaxHeight(),
         )
       }
 
@@ -133,6 +184,10 @@ fun BrewingScreen(
         onSelectTone = { selectedToneIndex = it },
       )
     }
+
+    dragState?.let { dragged ->
+      DragIngredientOverlay(dragged)
+    }
   }
 }
 
@@ -141,306 +196,385 @@ private fun BrewingTopBar() {
   Row(
     modifier = Modifier.fillMaxWidth(),
     horizontalArrangement = Arrangement.SpaceBetween,
-    verticalAlignment = Alignment.CenterVertically,
+    verticalAlignment = Alignment.Top,
   ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-      TopControlBox(text = "<-")
-      Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = Color(0xFF2C2230),
+    Image(
+      painter = painterResource(R.drawable.brew_header_bar),
+      contentDescription = null,
+      modifier = Modifier.width(296.dp),
+      contentScale = ContentScale.FillWidth,
+    )
+
+    Surface(
+      shape = RoundedCornerShape(12.dp),
+      color = Color(0xFF342823),
+      border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF6B5443)),
+    ) {
+      Box(
+        modifier = Modifier.size(46.dp),
+        contentAlignment = Alignment.Center,
       ) {
         Text(
-          text = "Приготовление",
-          modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-          style = MaterialTheme.typography.titleLarge,
-          color = Color(0xFFF2E5D5),
-          fontWeight = FontWeight.SemiBold,
+          text = "?",
+          color = Color(0xFFF0D39D),
+          style = MaterialTheme.typography.headlineSmall,
+          fontWeight = FontWeight.Bold,
         )
       }
-    }
-    TopControlBox(text = "?")
-  }
-}
-
-@Composable
-private fun TopControlBox(text: String) {
-  Surface(
-    shape = RoundedCornerShape(14.dp),
-    color = Color(0xFF2E221D),
-    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF5A4337)),
-  ) {
-    Box(
-      modifier = Modifier.size(54.dp),
-      contentAlignment = Alignment.Center,
-    ) {
-      Text(
-        text = text,
-        color = Color(0xFFF2E5D5),
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.Bold,
-      )
     }
   }
 }
 
 @Composable
 private fun IngredientRack(
-  scenario: GameScenario,
+  visuals: List<Pair<Ingredient, BrewIngredientVisual>>,
   selectedIds: List<String>,
-  onIngredientClick: (Ingredient) -> Unit,
+  canAddMore: Boolean,
+  cauldronBounds: Rect?,
+  onIngredientDropped: (Ingredient) -> Unit,
+  onDragStateChange: (DragState?) -> Unit,
   modifier: Modifier = Modifier,
 ) {
   Column(
     modifier = modifier,
-    verticalArrangement = Arrangement.spacedBy(12.dp),
+    verticalArrangement = Arrangement.spacedBy(8.dp),
   ) {
-    scenario.availableIngredients.take(4).forEach { ingredient ->
-      val selected = ingredient.id in selectedIds
-      Surface(
-        modifier =
-          Modifier
-            .fillMaxWidth()
-            .weight(1f)
-            .clip(RoundedCornerShape(20.dp))
-            .clickable { onIngredientClick(ingredient) }
-            .border(
-              width = if (selected) 2.dp else 1.dp,
-              color = if (selected) Color(0xFFF0C98B) else Color(0xFF5D463B),
-              shape = RoundedCornerShape(20.dp),
-            ),
-        shape = RoundedCornerShape(20.dp),
-        color = if (selected) Color(0xFF4D382E) else Color(0xFF251A17),
-      ) {
-        Column(
-          modifier = Modifier.fillMaxSize().padding(12.dp),
-          verticalArrangement = Arrangement.SpaceBetween,
-          horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-          Box(
-            modifier =
-              Modifier
-                .size(58.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(ingredientPlaceholderBrush(ingredient.name)),
-          )
-          Text(
-            text = ingredient.name,
-            style = MaterialTheme.typography.titleSmall,
-            color = Color(0xFFF2E5D5),
-            fontWeight = FontWeight.SemiBold,
-          )
-          Text(
-            text = ingredient.stockCount.toString(),
-            style = MaterialTheme.typography.headlineSmall,
-            color = Color(0xFFF2E5D5),
-            fontWeight = FontWeight.Bold,
-          )
-        }
-      }
+    visuals.take(4).forEach { (ingredient, visual) ->
+      val isSelected = ingredient.id in selectedIds
+      val enabled = isSelected || canAddMore
+      IngredientTile(
+        visual = visual,
+        selected = isSelected,
+        enabled = enabled,
+        onDropped = { onIngredientDropped(ingredient) },
+        onDragStateChange = onDragStateChange,
+        cauldronBounds = cauldronBounds,
+        ingredient = ingredient,
+        modifier = Modifier.weight(1f).fillMaxWidth(),
+      )
     }
+  }
+}
+
+@Composable
+private fun IngredientTile(
+  ingredient: Ingredient,
+  visual: BrewIngredientVisual,
+  selected: Boolean,
+  enabled: Boolean,
+  cauldronBounds: Rect?,
+  onDropped: () -> Unit,
+  onDragStateChange: (DragState?) -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  val backgroundRes =
+    when {
+      !enabled -> R.drawable.brew_slot_locked
+      selected -> R.drawable.brew_slot_selected
+      else -> R.drawable.brew_slot_default
+    }
+  var originInRoot by remember { mutableStateOf(Offset.Zero) }
+  var currentPosition by remember { mutableStateOf(Offset.Zero) }
+
+  Box(
+    modifier =
+      modifier
+        .onGloballyPositioned { coordinates ->
+          val bounds = coordinates.boundsInRoot()
+          originInRoot = Offset(bounds.left + bounds.width / 2f, bounds.top + bounds.height / 2f)
+        }
+        .pointerInput(enabled, selected, cauldronBounds) {
+          detectDragGestures(
+            onDragStart = {
+              if (enabled && !selected) {
+                currentPosition = originInRoot
+                onDragStateChange(DragState(ingredient, visual, currentPosition))
+              }
+            },
+            onDrag = { change, dragAmount ->
+              change.consume()
+              if (enabled && !selected) {
+                currentPosition += dragAmount
+                onDragStateChange(DragState(ingredient, visual, currentPosition))
+              }
+            },
+            onDragEnd = {
+              if (enabled && !selected && cauldronBounds?.contains(currentPosition) == true) {
+                onDropped()
+              }
+              onDragStateChange(null)
+            },
+            onDragCancel = { onDragStateChange(null) },
+          )
+        },
+  ) {
+    Image(
+      painter = painterResource(backgroundRes),
+      contentDescription = null,
+      modifier = Modifier.fillMaxSize(),
+      contentScale = ContentScale.FillBounds,
+    )
+    Image(
+      painter = painterResource(visual.iconRes),
+      contentDescription = visual.label,
+      modifier = Modifier.align(Alignment.TopCenter).padding(top = 14.dp).size(50.dp),
+      contentScale = ContentScale.Fit,
+    )
+    Text(
+      text = visual.count.toString(),
+      modifier = Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 16.dp),
+      color = Color(0xFFF4E8D4),
+      style = MaterialTheme.typography.headlineSmall,
+      fontWeight = FontWeight.Bold,
+    )
   }
 }
 
 @Composable
 private fun CauldronStage(
   selectedIngredients: List<Ingredient>,
-  stirCount: Int,
   selectedTone: BrewTone?,
+  stirProgress: Float,
+  stirrerOffset: Offset,
+  canStir: Boolean,
+  onCauldronBoundsChange: (Rect) -> Unit,
+  onStirDragStart: () -> Unit,
+  onStirDrag: (Offset) -> Unit,
+  onStirDragEnd: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val liquidColor = selectedTone?.color ?: Color(0xFF4B6888)
-  Surface(
+  Box(
     modifier = modifier,
-    shape = RoundedCornerShape(28.dp),
-    color = Color(0xFF1C1412),
-    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF46322B)),
+    contentAlignment = Alignment.Center,
   ) {
+    val ingredientOffsets =
+      listOf(
+        Offset(-74f, -18f),
+        Offset(0f, -92f),
+        Offset(76f, -8f),
+      )
+
     Box(
-      modifier = Modifier.fillMaxSize().padding(18.dp),
+      modifier =
+        Modifier
+          .size(width = 560.dp, height = 430.dp)
+          .clip(RoundedCornerShape(999.dp)),
     ) {
-      Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-      ) {
-        Box(
+      Box(
+        modifier =
+          Modifier
+            .align(Alignment.Center)
+            .offset(y = (-8).dp)
+            .size(width = 236.dp, height = 90.dp)
+            .clip(CircleShape)
+            .background(liquidColor.copy(alpha = 0.34f)),
+      )
+
+      Box(
+        modifier =
+          Modifier
+            .align(Alignment.Center)
+            .offset(y = 10.dp)
+            .size(width = 252.dp, height = 150.dp)
+            .onGloballyPositioned { coordinates ->
+              onCauldronBoundsChange(coordinates.boundsInRoot())
+            },
+      )
+
+      StirrerControl(
+        canStir = canStir,
+        stirrerOffset = stirrerOffset,
+        onStirDragStart = onStirDragStart,
+        onStirDrag = onStirDrag,
+        onStirDragEnd = onStirDragEnd,
+      )
+
+      selectedIngredients.forEachIndexed { index, ingredient ->
+        val visual = ingredientVisualForIngredient(ingredient)
+        val ingredientOffset = ingredientOffsets.getOrElse(index) { Offset(0f, -48f) }
+        Image(
+          painter = painterResource(visual.iconRes),
+          contentDescription = ingredient.name,
           modifier =
             Modifier
-              .size(340.dp)
-              .clip(CircleShape)
-              .background(Color(0xFF281C18))
-              .border(18.dp, Color(0xFF47332C), CircleShape),
-        ) {
-          Box(
-            modifier =
-              Modifier
-                .align(Alignment.Center)
-                .size(250.dp)
-                .clip(CircleShape)
-                .background(
-                  Brush.radialGradient(
-                    listOf(
-                      liquidColor.copy(alpha = 0.98f),
-                      liquidColor.copy(alpha = 0.75f),
-                      Color(0xFF2A3850),
-                    ),
-                  ),
-                ),
-          )
+              .size(42.dp)
+              .align(Alignment.Center)
+              .offset(
+                x = ingredientOffset.x.dp,
+                y = ingredientOffset.y.dp,
+              ),
+          contentScale = ContentScale.Fit,
+        )
+      }
 
-          selectedIngredients.forEachIndexed { index, ingredient ->
-            Box(
-              modifier =
-                Modifier
-                  .align(
-                    when (index) {
-                      0 -> Alignment.TopStart
-                      1 -> Alignment.TopEnd
-                      else -> Alignment.BottomCenter
-                    },
-                  )
-                  .padding(
-                    start = if (index == 0) 84.dp else 0.dp,
-                    end = if (index == 1) 84.dp else 0.dp,
-                    top = if (index < 2) 88.dp else 0.dp,
-                    bottom = if (index == 2) 86.dp else 0.dp,
-                  )
-                  .size(34.dp)
-                  .clip(RoundedCornerShape(10.dp))
-                  .background(ingredientPlaceholderBrush(ingredient.name)),
-            )
-          }
-
-          Text(
-            text = if (selectedIngredients.isEmpty()) "Котел пуст" else "Помешано: $stirCount/3",
-            modifier = Modifier.align(Alignment.Center),
-            color = Color.White,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-          )
-        }
+      Surface(
+        modifier = Modifier.align(Alignment.BottomCenter).offset(y = (-6).dp),
+        shape = RoundedCornerShape(999.dp),
+        color = Color(0xAA1B140F),
+      ) {
+        Text(
+          text = if (selectedIngredients.isEmpty()) "Перетащи ингредиенты в котел" else "В котле: ${selectedIngredients.size}/3 • Перемешано: ${(stirProgress * 100).toInt()}%",
+          modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+          color = Color(0xFFF3E5D2),
+          style = MaterialTheme.typography.labelLarge,
+          fontWeight = FontWeight.SemiBold,
+        )
       }
     }
   }
+}
+
+@Composable
+private fun BoxScope.StirrerControl(
+  canStir: Boolean,
+  stirrerOffset: Offset,
+  onStirDragStart: () -> Unit,
+  onStirDrag: (Offset) -> Unit,
+  onStirDragEnd: () -> Unit,
+) {
+  Image(
+    painter = painterResource(R.drawable.brew_stirrer),
+    contentDescription = null,
+    modifier =
+      Modifier
+        .align(Alignment.Center)
+        .offset(x = 82.dp, y = (-104).dp)
+        .offset {
+          IntOffset(
+            x = stirrerOffset.x.roundToInt(),
+            y = stirrerOffset.y.roundToInt(),
+          )
+        }
+        .width(122.dp)
+        .pointerInput(canStir) {
+          detectDragGestures(
+            onDragStart = { if (canStir) onStirDragStart() },
+            onDrag = { change, dragAmount ->
+              if (canStir) {
+                change.consume()
+                onStirDrag(dragAmount)
+              }
+            },
+            onDragEnd = onStirDragEnd,
+            onDragCancel = onStirDragEnd,
+          )
+        },
+    contentScale = ContentScale.Fit,
+  )
 }
 
 @Composable
 private fun BrewingStepsPanel(
   selectedCount: Int,
-  stirCount: Int,
+  stirProgress: Float,
   selectedTone: BrewTone?,
-  canHeat: Boolean,
-  onStir: () -> Unit,
-  onServe: () -> Unit,
   canServe: Boolean,
+  onServe: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   Column(
     modifier = modifier,
-    verticalArrangement = Arrangement.spacedBy(14.dp),
+    verticalArrangement = Arrangement.spacedBy(6.dp),
   ) {
     BrewStepCard(
+      iconRes = R.drawable.brew_item_mushroom,
       title = "1. Добавь ингредиент",
       subtitle = "$selectedCount/3 в котле",
-      accent = Color(0xFF8A6650),
-      modifier = Modifier.weight(1f),
+      modifier = Modifier.height(66.dp).fillMaxWidth(),
     )
     BrewStepCard(
+      iconRes = R.drawable.brew_stirrer,
       title = "2. Перемешай",
-      subtitle = if (canHeat) "Нажми, чтобы перемешать" else "Сначала кинь ингредиенты",
-      accent = Color(0xFF7E5E4A),
-      modifier = Modifier.weight(1f),
-      onClick = onStir,
-      enabled = canHeat,
+      subtitle = "${(stirProgress * 2f).coerceAtMost(2f).formatOneDecimal()} / 2.0 сек",
+      modifier = Modifier.height(66.dp).fillMaxWidth(),
+      iconWide = true,
     )
     BrewStepCard(
+      iconRes = R.drawable.brew_item_violet_flower,
       title = "3. Выбери цвет",
-      subtitle = selectedTone?.label ?: "Ни один оттенок не выбран",
-      accent = selectedTone?.color ?: Color(0xFF835F4B),
-      modifier = Modifier.weight(1f),
+      subtitle = selectedTone?.label ?: "Оттенок не выбран",
+      modifier = Modifier.height(66.dp).fillMaxWidth(),
+      accent = selectedTone?.color,
     )
-    Surface(
-      modifier = Modifier.fillMaxWidth().weight(1f),
-      shape = RoundedCornerShape(20.dp),
-      color = Color(0xFF2A1D19),
-      border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF5A4337)),
-    ) {
-      Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
-      ) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-          Text(
-            text = "4. Подай напиток",
-            style = MaterialTheme.typography.titleMedium,
-            color = Color(0xFFF2E5D5),
-            fontWeight = FontWeight.SemiBold,
-          )
-          Text(
-            text = if (canServe) "Смесь готова к подаче." else "Нужно 3 ингредиента, перемешивание и выбранный цвет.",
-            style = MaterialTheme.typography.bodySmall,
-            color = Color(0xFFD0B7A3),
-          )
-        }
+    BrewStepCard(
+      iconRes = R.drawable.brew_item_honey_bottle,
+      title = "4. Разлей",
+      subtitle = if (canServe) "Можно подавать" else "Не все шаги завершены",
+      modifier = Modifier.height(78.dp).fillMaxWidth(),
+      footerButton = {
         Button(
           onClick = onServe,
           enabled = canServe,
-          modifier = Modifier.fillMaxWidth().height(48.dp),
+          modifier = Modifier.fillMaxWidth().height(26.dp),
         ) {
           Text(
             text = "Подать",
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
           )
         }
-      }
-    }
+      },
+    )
   }
 }
 
 @Composable
 private fun BrewStepCard(
+  @DrawableRes iconRes: Int,
   title: String,
   subtitle: String,
-  accent: Color,
   modifier: Modifier = Modifier,
-  onClick: (() -> Unit)? = null,
-  enabled: Boolean = true,
+  iconWide: Boolean = false,
+  accent: Color? = null,
+  footerButton: @Composable (() -> Unit)? = null,
 ) {
-  Surface(
-    modifier =
-      modifier
-        .fillMaxWidth()
-        .clip(RoundedCornerShape(20.dp))
-        .then(if (onClick != null) Modifier.clickable(enabled = enabled, onClick = onClick) else Modifier),
-    shape = RoundedCornerShape(20.dp),
-    color = if (enabled) Color(0xFF2A1D19) else Color(0xFF221816),
-    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF5A4337)),
-  ) {
+  Box(modifier = modifier.clip(RoundedCornerShape(18.dp))) {
+    Image(
+      painter = painterResource(R.drawable.brew_step_panel),
+      contentDescription = null,
+      modifier = Modifier.fillMaxSize(),
+      contentScale = ContentScale.FillBounds,
+    )
     Row(
-      modifier = Modifier.fillMaxSize().padding(14.dp),
-      horizontalArrangement = Arrangement.spacedBy(14.dp),
+      modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 6.dp),
+      horizontalArrangement = Arrangement.spacedBy(8.dp),
       verticalAlignment = Alignment.CenterVertically,
     ) {
       Box(
         modifier =
           Modifier
-            .size(54.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(accent),
-      )
-      Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            .size(44.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(accent ?: Color(0x442E221D)),
+        contentAlignment = Alignment.Center,
+      ) {
+        Image(
+          painter = painterResource(iconRes),
+          contentDescription = null,
+          modifier = if (iconWide) Modifier.width(20.dp) else Modifier.size(24.dp),
+          contentScale = ContentScale.Fit,
+        )
+      }
+
+      Column(
+        modifier = Modifier.weight(1f),
+        verticalArrangement = Arrangement.spacedBy(1.dp),
+      ) {
         Text(
           text = title,
-          style = MaterialTheme.typography.titleMedium,
-          color = Color(0xFFF2E5D5),
+          style = MaterialTheme.typography.bodyLarge,
+          color = Color(0xFFF2E1C6),
           fontWeight = FontWeight.SemiBold,
+          maxLines = 1,
         )
         Text(
           text = subtitle,
-          style = MaterialTheme.typography.bodySmall,
-          color = if (enabled) Color(0xFFD0B7A3) else Color(0xFF8A7366),
+          style = MaterialTheme.typography.labelMedium,
+          color = Color(0xFFD9C1A7),
+          maxLines = 1,
         )
+        footerButton?.invoke()
       }
     }
   }
@@ -454,49 +588,81 @@ private fun ColorRail(
 ) {
   Surface(
     modifier = Modifier.fillMaxWidth(),
-    shape = RoundedCornerShape(24.dp),
-    color = Color(0xFF241815),
-    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF5A4337)),
+    shape = RoundedCornerShape(999.dp),
+    color = Color(0xFF2A1D18),
+    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF7A5A43)),
   ) {
     Row(
-      modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
-      horizontalArrangement = Arrangement.spacedBy(12.dp),
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+      horizontalArrangement = Arrangement.spacedBy(10.dp),
       verticalAlignment = Alignment.CenterVertically,
     ) {
-      Spacer(Modifier.width(80.dp))
+      Spacer(Modifier.width(52.dp))
       tones.forEachIndexed { index, tone ->
         Box(
           modifier =
             Modifier
               .weight(1f)
-              .height(34.dp)
-              .clip(RoundedCornerShape(10.dp))
+              .height(24.dp)
+              .clip(RoundedCornerShape(8.dp))
               .background(tone.color)
               .border(
                 width = if (selectedToneIndex == index) 3.dp else 1.dp,
-                color = if (selectedToneIndex == index) Color(0xFFF2D28F) else Color(0xFF3C2D28),
-                shape = RoundedCornerShape(10.dp),
+                color = if (selectedToneIndex == index) Color(0xFFF0D39D) else Color(0xFF4D362B),
+                shape = RoundedCornerShape(8.dp),
               )
               .clickable { onSelectTone(index) },
         )
       }
-      Spacer(Modifier.width(80.dp))
+      Spacer(Modifier.width(52.dp))
     }
   }
 }
 
-private fun ingredientPlaceholderBrush(name: String): Brush =
-  Brush.linearGradient(
-    when (name.lowercase()) {
-      "moonmint" -> listOf(Color(0xFF6AB1A2), Color(0xFF416B62))
-      "ember zest" -> listOf(Color(0xFFD59A63), Color(0xFF7F4E2E))
-      "silverfoam" -> listOf(Color(0xFFACC2FF), Color(0xFF667BB0))
-      "dusk syrup" -> listOf(Color(0xFF8C664F), Color(0xFF503728))
-      "frost thyme" -> listOf(Color(0xFFA2C37F), Color(0xFF5A6F45))
-      "cinderbloom" -> listOf(Color(0xFFCB7FB3), Color(0xFF74486A))
-      else -> listOf(Color(0xFF8F705A), Color(0xFF4C372D))
-    },
+@Composable
+private fun DragIngredientOverlay(dragged: DragState) {
+  val density = LocalDensity.current
+  val halfSizePx = with(density) { 26.dp.toPx() }
+  Image(
+    painter = painterResource(dragged.visual.iconRes),
+    contentDescription = dragged.visual.label,
+    modifier =
+      Modifier
+        .offset {
+          IntOffset(
+            x = (dragged.position.x - halfSizePx).roundToInt(),
+            y = (dragged.position.y - halfSizePx).roundToInt(),
+          )
+        }
+        .size(52.dp),
+    contentScale = ContentScale.Fit,
   )
+}
+
+private fun ingredientVisualsForScenario(scenario: GameScenario): List<Pair<Ingredient, BrewIngredientVisual>> =
+  scenario.availableIngredients.map { ingredient ->
+    ingredient to ingredientVisualForIngredient(ingredient)
+  }
+
+private fun ingredientVisualForIngredient(ingredient: Ingredient): BrewIngredientVisual =
+  when (ingredient.id) {
+    "silverfoam" -> BrewIngredientVisual(R.drawable.brew_item_crystal, ingredient.stockCount, ingredient.name)
+    "moonmint" -> BrewIngredientVisual(R.drawable.brew_item_leaf_bundle, ingredient.stockCount, ingredient.name)
+    "emberzest" -> BrewIngredientVisual(R.drawable.brew_item_ginger_root, ingredient.stockCount, ingredient.name)
+    "dusk-syrup" -> BrewIngredientVisual(R.drawable.brew_item_honey_bottle, ingredient.stockCount, ingredient.name)
+    "frost-thyme" -> BrewIngredientVisual(R.drawable.brew_item_violet_flower, ingredient.stockCount, ingredient.name)
+    "cinderbloom" -> BrewIngredientVisual(R.drawable.brew_item_mushroom, ingredient.stockCount, ingredient.name)
+    else -> BrewIngredientVisual(R.drawable.brew_item_blackberry, ingredient.stockCount, ingredient.name)
+  }
+
+private fun currentStirElapsedMs(baseMs: Long, dragStartMs: Long?): Long =
+  if (dragStartMs == null) {
+    baseMs
+  } else {
+    baseMs + (SystemClock.elapsedRealtime() - dragStartMs)
+  }
+
+private fun Float.formatOneDecimal(): String = String.format("%.1f", this)
 
 @Preview(showBackground = true, widthDp = 960, heightDp = 540)
 @Composable
