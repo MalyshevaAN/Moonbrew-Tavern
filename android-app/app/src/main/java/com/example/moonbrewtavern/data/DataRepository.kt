@@ -28,42 +28,69 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+/**
+ * Central gameplay repository for the tavern loop.
+ *
+ * It exposes both long-lived progression state and the transient state of the current night.
+ */
 interface DataRepository {
+  /** Convenience accessor for the currently active scenario snapshot. */
   val scenario: GameScenario
     get() = data.value
 
+  /** Scenario data used by the currently visible dialogue, recipe, brewing, and result screens. */
   val data: StateFlow<GameScenario>
+
+  /** Persistent game progress shared across nights. */
   val gameState: StateFlow<GameState>
+
+  /** Live state for the current night. */
   val nightState: StateFlow<NightState>
+
+  /** Most recent brew evaluation shown on the result screen. */
   val lastBrewResult: StateFlow<BrewResult?>
 
+  /** Resets the nightly loop and reinitializes the entrance queue. */
   fun startNight()
 
+  /** Moves a visitor from the entrance queue into the tavern if capacity allows. */
   fun admitVisitor(visitorId: String)
 
+  /** Removes a visitor from the entrance queue for the current night. */
   fun rejectVisitor(visitorId: String)
 
+  /** Starts the timed tavern phase once at least one guest is seated. */
   fun enterTavern()
 
+  /** Returns the UI to the entrance phase without resetting persistent progress. */
   fun returnToEntrance()
 
+  /** Opens the dialogue phase for a waiting guest. */
   fun startDialogue(visitorId: String)
 
+  /** Advances the active flow from dialogue into the recipe book. */
   fun openRecipeBook()
 
+  /** Advances the active flow from recipe selection into brewing. */
   fun openBrewing()
 
+  /** Scores a brew against the active recipe without mutating the night state. */
   fun evaluateBrew(selectedIngredientIds: Set<String>): BrewResult
 
+  /** Applies a brewed drink to the current guest and returns the resulting score. */
   fun serveBrew(selectedIngredientIds: Set<String>): BrewResult
 
+  /** Starts the departure/result flow for a guest who is ready to leave. */
   fun collectGuestDeparture(visitorId: String)
 
+  /** Finalizes departure rewards after the result screen has been acknowledged. */
   fun confirmGuestDeparture()
 
+  /** Ends the current night and advances to the next day. */
   fun finishNight()
 }
 
+/** Default in-memory implementation used by the current single-session demo. */
 class DefaultDataRepository : DataRepository {
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
   private var nightJob: Job? = null
