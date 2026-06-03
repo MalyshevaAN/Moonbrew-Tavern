@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,6 +40,7 @@ import com.example.moonbrewtavern.domain.model.GameState
 import com.example.moonbrewtavern.domain.model.NightState
 import com.example.moonbrewtavern.domain.model.VisitorDefinition
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
+import com.example.moonbrewtavern.ui.common.resolveVisitorDefinition
 
 @Composable
 fun EntranceScreen(
@@ -135,37 +137,29 @@ fun EntranceScreen(
       }
 
       Column(
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
       ) {
-        Surface(
-          shape = RoundedCornerShape(20.dp),
-          color = Color(0xC21D1412),
+        Box(
+          modifier = Modifier.fillMaxWidth(),
+          contentAlignment = Alignment.CenterEnd,
         ) {
-          Column(
-            modifier = Modifier.fillMaxWidth().padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+          Row(
+            modifier =
+              Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .offset(y = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.End),
           ) {
-            Text("Очередь у входа", style = MaterialTheme.typography.titleLarge, color = Color(0xFFF3E3CF), fontWeight = FontWeight.Bold)
-            Text(
-              "Игрок решает, кого впустить этой ночью. Как только в зале будет хотя бы один гость, можно открыть двери и перейти внутрь.",
-              style = MaterialTheme.typography.bodyMedium,
-              color = Color(0xFFD9C1A7),
-            )
-          }
-        }
-
-        Row(
-          modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-          horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-          nightState.queueVisitorIds.forEach { visitorId ->
-            val definition = visitorDefinitions[visitorId] ?: return@forEach
-            QueueCard(
-              definition = definition,
-              admitEnabled = freeSeats > 0,
-              onAdmit = { onAdmit(visitorId) },
-              onReject = { onReject(visitorId) },
-            )
+            nightState.queueVisitorIds.forEach { visitorId ->
+              val definition = resolveVisitorDefinition(visitorId, visitorDefinitions) ?: return@forEach
+              QueueCard(
+                definition = definition,
+                admitEnabled = freeSeats > 0,
+                onAdmit = { onAdmit(visitorId) },
+                onReject = { onReject(visitorId) },
+              )
+            }
           }
         }
 
@@ -181,7 +175,7 @@ fun EntranceScreen(
               Text("Уже допущены", style = MaterialTheme.typography.titleMedium, color = Color(0xFFF3E3CF), fontWeight = FontWeight.SemiBold)
               Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 nightState.seatedVisitorIds.forEach { visitorId ->
-                  val definition = visitorDefinitions[visitorId] ?: return@forEach
+                  val definition = resolveVisitorDefinition(visitorId, visitorDefinitions) ?: return@forEach
                   Surface(shape = RoundedCornerShape(999.dp), color = Color(0xFF4A362B)) {
                     Text(
                       text = definition.name,
@@ -208,13 +202,13 @@ private fun QueueCard(
   onReject: () -> Unit,
 ) {
   Surface(
-    modifier = Modifier.width(180.dp),
+    modifier = Modifier.width(216.dp),
     shape = RoundedCornerShape(22.dp),
     color = Color(0xD1261C19),
   ) {
     Column(
-      modifier = Modifier.fillMaxWidth().padding(12.dp),
-      verticalArrangement = Arrangement.spacedBy(8.dp),
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 16.dp),
+      verticalArrangement = Arrangement.spacedBy(10.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
       Box(
@@ -229,7 +223,7 @@ private fun QueueCard(
         Image(
           painter = painterResource(definition.assets.queueRes),
           contentDescription = definition.name,
-          modifier = Modifier.height(110.dp),
+          modifier = Modifier.height(152.dp),
           contentScale = ContentScale.FillHeight,
         )
       }

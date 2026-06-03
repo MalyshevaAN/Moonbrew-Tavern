@@ -38,6 +38,7 @@ import com.example.moonbrewtavern.domain.model.NightState
 import com.example.moonbrewtavern.domain.model.TavernGuestStatus
 import com.example.moonbrewtavern.domain.model.VisitorDefinition
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
+import com.example.moonbrewtavern.ui.common.resolveVisitorDefinition
 import java.util.Locale
 
 @Composable
@@ -128,7 +129,7 @@ private fun TavernRoomOverlay(
       )
 
     nightState.seatedVisitorIds.take(seatAnchors.size).forEachIndexed { index, visitorId ->
-      val definition = visitorDefinitions[visitorId] ?: return@forEachIndexed
+      val definition = resolveVisitorDefinition(visitorId, visitorDefinitions) ?: return@forEachIndexed
       val guest = nightState.guests.firstOrNull { it.visitorId == visitorId } ?: return@forEachIndexed
       val isCurrent = visitorId == nightState.currentVisitorId
       val statusRes =
