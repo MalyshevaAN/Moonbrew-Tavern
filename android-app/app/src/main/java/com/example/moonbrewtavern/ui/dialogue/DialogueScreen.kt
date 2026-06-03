@@ -35,6 +35,7 @@ import com.example.moonbrewtavern.data.content.ContentCatalog
 import com.example.moonbrewtavern.domain.model.GameScenario
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
 
+/** Dialogue scene shown before the player opens the recipe book for a guest. */
 @Composable
 fun DialogueScreen(
   scenario: GameScenario,
@@ -66,8 +67,7 @@ private fun DialogueSceneOverlay(
   modifier: Modifier = Modifier,
 ) {
   Box(modifier = modifier) {
-    // Верхняя плашка ночи/времени.
-    // Кнопка меню справа сверху.
+    // Top status badge and menu affordance.
     Image(
       painter = painterResource(R.drawable.dialogue_status_bar),
       contentDescription = null,
@@ -81,26 +81,26 @@ private fun DialogueSceneOverlay(
       contentScale = ContentScale.FillWidth,
     )
 
-    // Само облачко над персонажами.
+    // Dialogue bubble above the characters.
     Image(
       painter = painterResource(R.drawable.dialogue_bubble),
       contentDescription = null,
       modifier = Modifier.width(270.dp).align(Alignment.TopCenter).offset(x = (-76).dp, y = 1.dp),
       contentScale = ContentScale.FillWidth,
     )
-    // Текст внутри облачка.
+    // Active line shown inside the bubble.
     BubbleText(
       text = scenario.visitor.openingLine,
       modifier = Modifier.align(Alignment.TopCenter).offset(x = (-94).dp, y = 18.dp),
     )
 
-    // Центральная сцена с Лирой и барменом.
+    // Main character stage with the guest and bartender.
     CharacterStage(
       visitorId = scenario.visitor.id,
       modifier = Modifier.align(Alignment.Center).offset(x = (-8).dp, y = 34.dp),
     )
 
-    // Правая карточка персонажа.
+    // Profile card for the current guest.
     ProfilePanel(
       visitorName = scenario.visitor.name,
       visitorTitle = scenario.visitor.title,
@@ -108,7 +108,7 @@ private fun DialogueSceneOverlay(
       modifier = Modifier.align(Alignment.CenterEnd).offset(x = (-6).dp, y = 18.dp),
     )
 
-    // Нижний блок с 4 вариантами ответа.
+    // Bottom response grid that advances to brewing.
     DialogueChoices(
       onContinue = onContinue,
       modifier = Modifier.align(Alignment.BottomStart).offset(x = 14.dp, y = 10.dp),
@@ -123,11 +123,11 @@ private fun BubbleText(
 ) {
   Text(
     text = text,
-    modifier = modifier.width(200.dp), // Ширина текста в облачке.
+    modifier = modifier.width(200.dp),
     color = Color(0xFF1F1A17),
     style = MaterialTheme.typography.titleMedium.copy(
-      fontSize = 11.sp, // Размер текста реплики.
-      lineHeight = 14.sp, // Межстрочный интервал.
+      fontSize = 11.sp,
+      lineHeight = 14.sp,
     ),
     fontWeight = FontWeight.Medium,
     maxLines = 3,
@@ -142,18 +142,18 @@ private fun CharacterStage(
 ) {
   val visitorPortraitRes = ContentCatalog.visitorDefinitionsById[visitorId]?.assets?.dialoguePortraitRes ?: R.drawable.dialogue_visitor_lyra
   Box(
-    modifier = modifier.width(446.dp).height(262.dp), // Общая зона двух персонажей.
+    modifier = modifier.width(446.dp).height(262.dp),
   ) {
     Image(
       painter = painterResource(visitorPortraitRes),
       contentDescription = null,
-      modifier = Modifier.width(154.dp).align(Alignment.BottomStart).offset(x = 14.dp), // Лира слева.
+      modifier = Modifier.width(154.dp).align(Alignment.BottomStart).offset(x = 14.dp),
       contentScale = ContentScale.FillWidth,
     )
     Image(
       painter = painterResource(R.drawable.dialogue_bartender),
       contentDescription = null,
-      modifier = Modifier.width(164.dp).align(Alignment.BottomEnd).offset(x = (-44).dp, y = -24.dp), // Бармен справа.
+      modifier = Modifier.width(164.dp).align(Alignment.BottomEnd).offset(x = (-44).dp, y = -24.dp),
       contentScale = ContentScale.FillWidth,
     )
   }
@@ -166,7 +166,7 @@ private fun ProfilePanel(
   requestLine: String,
   modifier: Modifier = Modifier,
 ) {
-  Box(modifier = modifier.width(248.dp)) { // Размер правой карточки.
+  Box(modifier = modifier.width(248.dp)) {
     Image(
       painter = painterResource(R.drawable.dialogue_profile_card),
       contentDescription = null,
@@ -190,10 +190,10 @@ private fun DialogueChoices(
   modifier: Modifier = Modifier,
 ) {
   Column(
-    modifier = modifier.width(448.dp), // Общая ширина блока вопросов.
-    verticalArrangement = Arrangement.spacedBy(5.dp), // Расстояние между верхним и нижним рядом.
+    modifier = modifier.width(448.dp),
+    verticalArrangement = Arrangement.spacedBy(5.dp),
   ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { // Расстояние между левой и правой кнопкой.
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
       ChoiceCard(text = "1. Что привело тебя сюда?", modifier = Modifier.weight(1f), onClick = onContinue)
       ChoiceCard(text = "2. Расскажи о себе.", modifier = Modifier.weight(1f), onClick = onContinue)
     }
@@ -211,7 +211,7 @@ private fun ChoiceCard(
   modifier: Modifier = Modifier,
 ) {
   Box(
-    modifier = modifier.height(46.dp).clickable(onClick = onClick), // Высота одной кнопки-вопроса.
+    modifier = modifier.height(46.dp).clickable(onClick = onClick),
   ) {
     Image(
       painter = painterResource(R.drawable.dialogue_choice_panel),
@@ -222,11 +222,11 @@ private fun ChoiceCard(
     ChoiceMask()
     Text(
       text = text,
-      modifier = Modifier.align(Alignment.CenterStart).padding(horizontal = 18.dp, vertical = 8.dp), // Отступы текста внутри кнопки.
+      modifier = Modifier.align(Alignment.CenterStart).padding(horizontal = 18.dp, vertical = 8.dp),
       color = Color(0xFFF1E4DB),
       style = MaterialTheme.typography.titleSmall.copy(
-        fontSize = 10.sp, // Размер текста варианта.
-        lineHeight = 10.sp, // Межстрочный интервал варианта.
+        fontSize = 10.sp,
+        lineHeight = 10.sp,
       ),
       fontWeight = FontWeight.Medium,
       textAlign = TextAlign.Start,
@@ -242,7 +242,7 @@ private fun BoxScope.ChoiceMask() {
     modifier = Modifier
       .align(Alignment.Center)
       .fillMaxSize()
-      .padding(horizontal = 18.dp, vertical = 10.dp) // Маска поверх текста, вшитого в ассет.
+      .padding(horizontal = 18.dp, vertical = 10.dp)
       .background(
         color = Color(0xFF2A2030).copy(alpha = 0.94f),
         shape = RoundedCornerShape(10.dp),

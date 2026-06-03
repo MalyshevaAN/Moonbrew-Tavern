@@ -41,6 +41,7 @@ import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
 import com.example.moonbrewtavern.ui.common.resolveVisitorDefinition
 import java.util.Locale
 
+/** Main tavern floor where seated guests wait, drink, and leave during the night. */
 @Composable
 fun TavernRoomScreen(
   gameState: GameState,
@@ -53,7 +54,7 @@ fun TavernRoomScreen(
   Box(
     modifier = modifier.fillMaxSize(),
   ) {
-    // Общий фон внутренней таверны.
+    // Full tavern interior background.
     Image(
       painter = painterResource(R.drawable.tavern_room_background),
       contentDescription = null,
@@ -61,7 +62,7 @@ fun TavernRoomScreen(
       contentScale = ContentScale.Crop,
     )
 
-    // Бармен за стойкой.
+    // Bartender layered over the bar area.
     Image(
       painter = painterResource(R.drawable.tavern_room_bartender),
       contentDescription = null,
@@ -90,7 +91,7 @@ private fun TavernRoomOverlay(
   modifier: Modifier = Modifier,
 ) {
   Box(modifier = modifier) {
-    // Левая верхняя панель задач.
+    // Decorative task panel on the left.
     Image(
       painter = painterResource(R.drawable.tavern_room_task_panel),
       contentDescription = null,
@@ -98,13 +99,13 @@ private fun TavernRoomOverlay(
       contentScale = ContentScale.FillWidth,
     )
 
-    // Кнопка возврата на уличную сцену.
+    // Return to the street/entrance view.
     StreetBackButton(
       onClick = onBackToStreet,
       modifier = Modifier.align(Alignment.TopStart).offset(x = 4.dp, y = 150.dp),
     )
 
-    // Верхняя плашка с ресурсами.
+    // Resource bar embedded into the room chrome.
     Image(
       painter = painterResource(R.drawable.tavern_room_resource_bar),
       contentDescription = null,
@@ -112,7 +113,7 @@ private fun TavernRoomOverlay(
       contentScale = ContentScale.FillWidth,
     )
 
-    // Иконки быстрых действий справа сверху.
+    // Reserved utility buttons in the top-right corner.
     Row(
       modifier = Modifier.align(Alignment.TopEnd).offset(y = 4.dp),
       horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -201,7 +202,7 @@ private fun IconTile(
   label: String,
 ) {
   Column(horizontalAlignment = Alignment.CenterHorizontally) {
-    // Маленькая квадратная кнопка в правом верхнем углу.
+    // Small square utility button.
     Box(
       modifier =
         Modifier
@@ -226,7 +227,7 @@ private fun StreetBackButton(
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  // Простая кнопка возврата на уличную сцену.
+  // Simple return button back to the entrance view.
   Box(
     modifier =
       modifier
@@ -251,8 +252,8 @@ private fun GuestAtTable(
   statusRes: Int,
   statusLabel: String,
   name: String,
-  drinkSecondsLeft: Int? = null,
   modifier: Modifier = Modifier,
+  drinkSecondsLeft: Int? = null,
   highlighted: Boolean = false,
   onClick: () -> Unit,
 ) {
@@ -260,7 +261,7 @@ private fun GuestAtTable(
     modifier = modifier,
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    // Кружок-статус над головой гостя.
+    // Circular status marker above the guest.
     Box(
       modifier =
         Modifier
@@ -282,7 +283,7 @@ private fun GuestAtTable(
       )
     }
 
-    // Сам спрайт гостя за столом.
+    // Guest sprite placed at the assigned table.
     Box(
       modifier =
         Modifier
@@ -306,7 +307,7 @@ private fun GuestAtTable(
     }
 
     if (highlighted) {
-      // Подпись под активным гостем.
+      // Label for the active or departing guest.
       Box(
         modifier =
           Modifier

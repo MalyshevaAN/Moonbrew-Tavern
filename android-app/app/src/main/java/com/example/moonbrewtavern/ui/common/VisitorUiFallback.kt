@@ -5,6 +5,7 @@ import com.example.moonbrewtavern.domain.model.VisitorDefinition
 
 private const val VisitorUiFallbackTag = "VisitorUiFallback"
 
+/** Returns the matching visitor definition or logs a warning when the catalog is inconsistent. */
 fun resolveVisitorDefinition(
   visitorId: String,
   visitorDefinitions: Map<String, VisitorDefinition>,

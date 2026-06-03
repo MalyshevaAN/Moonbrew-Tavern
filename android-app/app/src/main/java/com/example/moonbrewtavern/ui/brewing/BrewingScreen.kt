@@ -29,6 +29,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -65,7 +66,7 @@ private data class BrewTone(
 )
 
 private data class BrewIngredientVisual(
-  @DrawableRes val iconRes: Int,
+  @param:DrawableRes val iconRes: Int,
   val count: Int,
   val label: String,
 )
@@ -76,6 +77,7 @@ private data class DragState(
   val position: Offset,
 )
 
+/** Brewing minigame where the player drags ingredients, stirs, and serves the order. */
 @Composable
 fun BrewingScreen(
   scenario: GameScenario,
@@ -84,7 +86,7 @@ fun BrewingScreen(
 ) {
   val ingredientVisuals = remember(scenario.availableIngredients) { ingredientVisualsForScenario(scenario) }
   val selectedIds = remember { mutableStateListOf<String>() }
-  var selectedToneIndex by rememberSaveable { mutableStateOf(-1) }
+  var selectedToneIndex by rememberSaveable { mutableIntStateOf(-1) }
   var dragState by remember { mutableStateOf<DragState?>(null) }
   var cauldronBounds by remember { mutableStateOf<Rect?>(null) }
   var stirrerOffset by remember { mutableStateOf(Offset.Zero) }
@@ -108,7 +110,9 @@ fun BrewingScreen(
   val canStir = selectedIngredients.isNotEmpty()
   val canServe = selectedIds.size == 3 && isStirred && selectedTone != null
 
+  // Root brewing scene that layers the background, controls, and drag overlay.
   Box(modifier = modifier.fillMaxSize()) {
+    // Illustrated brewing background.
     Image(
       painter = painterResource(R.drawable.brew_scene_background),
       contentDescription = null,
@@ -116,12 +120,14 @@ fun BrewingScreen(
       contentScale = ContentScale.Crop,
     )
 
+    // Main brewing UI stack: top bar, work area, and color rail.
     Column(
       modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp),
       verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
       BrewingTopBar()
 
+      // Three-column work area: ingredients, cauldron, and step checklist.
       Row(
         modifier = Modifier.fillMaxWidth().weight(1f),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -179,6 +185,7 @@ fun BrewingScreen(
         )
       }
 
+      // Bottom palette used to choose the brew tone/color.
       ColorRail(
         tones = tones,
         selectedToneIndex = selectedToneIndex,
@@ -186,6 +193,7 @@ fun BrewingScreen(
       )
     }
 
+    // Floating ingredient sprite shown while dragging an item.
     dragState?.let { dragged ->
       DragIngredientOverlay(dragged)
     }
@@ -194,6 +202,7 @@ fun BrewingScreen(
 
 @Composable
 private fun BrewingTopBar() {
+  // Header bar with the brewing title asset and help affordance.
   Row(
     modifier = Modifier.fillMaxWidth(),
     horizontalArrangement = Arrangement.SpaceBetween,
@@ -236,6 +245,7 @@ private fun IngredientRack(
   onDragStateChange: (DragState?) -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  // Vertical rack of ingredient slots available for the current recipe.
   Column(
     modifier = modifier,
     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -277,6 +287,7 @@ private fun IngredientTile(
   var originInRoot by remember { mutableStateOf(Offset.Zero) }
   var currentPosition by remember { mutableStateOf(Offset.Zero) }
 
+  // Draggable ingredient slot that can drop its item into the cauldron.
   Box(
     modifier =
       modifier
@@ -345,6 +356,8 @@ private fun CauldronStage(
   modifier: Modifier = Modifier,
 ) {
   val liquidColor = selectedTone?.color ?: Color(0xFF4B6888)
+
+  // Central brewing stage with the cauldron, ingredients, and stir control.
   Box(
     modifier = modifier,
     contentAlignment = Alignment.Center,
@@ -356,12 +369,14 @@ private fun CauldronStage(
         Offset(76f, -8f),
       )
 
+    // Large clipped interaction area around the cauldron.
     Box(
       modifier =
         Modifier
           .size(width = 560.dp, height = 430.dp)
           .clip(RoundedCornerShape(999.dp)),
     ) {
+      // Colored liquid layer inside the cauldron.
       Box(
         modifier =
           Modifier
@@ -372,6 +387,7 @@ private fun CauldronStage(
             .background(liquidColor.copy(alpha = 0.34f)),
       )
 
+      // Invisible drop target used for ingredient drag-and-drop.
       Box(
         modifier =
           Modifier
@@ -383,6 +399,7 @@ private fun CauldronStage(
             },
       )
 
+      // Draggable stirrer positioned over the cauldron.
       StirrerControl(
         canStir = canStir,
         stirrerOffset = stirrerOffset,
@@ -391,6 +408,7 @@ private fun CauldronStage(
         onStirDragEnd = onStirDragEnd,
       )
 
+      // Ingredient icons currently floating inside the brew.
       selectedIngredients.forEachIndexed { index, ingredient ->
         val visual = ingredientVisualForIngredient(ingredient)
         val ingredientOffset = ingredientOffsets.getOrElse(index) { Offset(0f, -48f) }
@@ -409,6 +427,7 @@ private fun CauldronStage(
         )
       }
 
+      // Bottom status pill describing brew progress.
       Surface(
         modifier = Modifier.align(Alignment.BottomCenter).offset(y = (-6).dp),
         shape = RoundedCornerShape(999.dp),
@@ -434,6 +453,7 @@ private fun BoxScope.StirrerControl(
   onStirDrag: (Offset) -> Unit,
   onStirDragEnd: () -> Unit,
 ) {
+  // Stirrer handle that accumulates drag time toward the stirring goal.
   Image(
     painter = painterResource(R.drawable.brew_stirrer),
     contentDescription = null,
@@ -474,6 +494,7 @@ private fun BrewingStepsPanel(
   onServe: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  // Right-side checklist that mirrors the brewing steps in order.
   Column(
     modifier = modifier,
     verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -530,6 +551,7 @@ private fun BrewStepCard(
   accent: Color? = null,
   footerButton: @Composable (() -> Unit)? = null,
 ) {
+  // Single step card with icon, current status text, and optional footer action.
   Box(modifier = modifier.clip(RoundedCornerShape(18.dp))) {
     Image(
       painter = painterResource(R.drawable.brew_step_panel),

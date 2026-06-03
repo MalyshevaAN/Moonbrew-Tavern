@@ -1,5 +1,6 @@
 package com.example.moonbrewtavern.domain.model
 
+/** Content definition for a reusable visitor archetype. */
 data class VisitorDefinition(
   val id: String,
   val name: String,
@@ -12,6 +13,7 @@ data class VisitorDefinition(
   val assets: VisitorAssets,
 )
 
+/** Asset references for the same visitor across multiple game screens. */
 data class VisitorAssets(
   val queueRes: Int,
   val tavernSeatRes: Int,
@@ -19,6 +21,7 @@ data class VisitorAssets(
   val resultPortraitRes: Int,
 )
 
+/** One possible order prompt that can be selected for a visitor. */
 data class VisitorRequest(
   val id: String,
   val text: String,
@@ -26,6 +29,7 @@ data class VisitorRequest(
   val forbiddenTags: Set<FlavorTag> = emptySet(),
 )
 
+/** Flavor dimensions used for recipe matching and guest preferences. */
 enum class FlavorTag {
   Fresh,
   Warm,

@@ -31,6 +31,11 @@ import androidx.compose.ui.unit.dp
 import com.example.moonbrewtavern.domain.model.GamePhase
 import com.example.moonbrewtavern.domain.model.GameState
 
+/**
+ * Shared two-column layout for the original scenario-driven screens.
+ *
+ * It keeps the scene, status, and primary action in a consistent frame.
+ */
 @Composable
 fun GameStageLayout(
   phaseLabel: String,
@@ -46,6 +51,8 @@ fun GameStageLayout(
   detailContent: @Composable ColumnScope.() -> Unit,
 ) {
   val colors = MaterialTheme.colorScheme
+
+  // Full-screen shared background for the scenario-based screens.
   Box(
     modifier =
       modifier
@@ -56,10 +63,12 @@ fun GameStageLayout(
           ),
         ),
   ) {
+    // Two-column shell with the main scene on the left and details on the right.
     Row(
       modifier = Modifier.fillMaxSize().padding(28.dp),
       horizontalArrangement = Arrangement.spacedBy(24.dp),
     ) {
+      // Left column for title, phase progress, and scene content.
       Column(
         modifier = Modifier.weight(1.35f).fillMaxHeight(),
       ) {
@@ -75,6 +84,8 @@ fun GameStageLayout(
         Spacer(Modifier.height(16.dp))
         ProgressTrack(currentPhase = state.phase)
         Spacer(Modifier.height(20.dp))
+
+        // Framed scene area supplied by the caller.
         Surface(
           modifier = Modifier.fillMaxWidth().weight(1f),
           shape = RoundedCornerShape(28.dp),
@@ -89,11 +100,14 @@ fun GameStageLayout(
         }
       }
 
+      // Right column for status, details, and the primary action.
       Column(
         modifier = Modifier.weight(1f).fillMaxHeight(),
       ) {
         StatusBoard(state = state)
         Spacer(Modifier.height(20.dp))
+
+        // Detail panel supplied by the caller.
         Surface(
           modifier = Modifier.fillMaxWidth().weight(1f),
           shape = RoundedCornerShape(28.dp),
@@ -109,6 +123,7 @@ fun GameStageLayout(
         if (actionLabel != null && onAction != null) {
           Spacer(Modifier.height(16.dp))
           if (actionNote != null) {
+            // Optional helper note shown above the primary button.
             Text(
               text = actionNote,
               style = MaterialTheme.typography.bodyMedium,
@@ -116,6 +131,8 @@ fun GameStageLayout(
             )
             Spacer(Modifier.height(12.dp))
           }
+
+          // Primary progression action for the current screen.
           Button(
             onClick = onAction,
             enabled = actionEnabled,
@@ -139,6 +156,8 @@ private fun ProgressTrack(currentPhase: GamePhase) {
       GamePhase.Brewing to "Варка",
       GamePhase.Result to "Итог",
     )
+
+  // Horizontal phase tracker that shows current and completed steps.
   Row(
     modifier = Modifier.fillMaxWidth(),
     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -175,6 +194,7 @@ private fun ProgressTrack(currentPhase: GamePhase) {
   }
 }
 
+/** Renders a compact section heading inside the detail column. */
 @Composable
 fun SectionTitle(text: String) {
   Text(
@@ -184,6 +204,7 @@ fun SectionTitle(text: String) {
   )
 }
 
+/** Displays one labeled value pair inside the shared detail layout. */
 @Composable
 fun InfoLine(label: String, value: String) {
   Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -215,6 +236,7 @@ private fun PhaseBadge(label: String) {
 
 @Composable
 private fun StatusBoard(state: GameState) {
+  // Top status row with compact counters for night, gold, and reputation.
   Row(
     modifier = Modifier.fillMaxWidth(),
     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -227,6 +249,7 @@ private fun StatusBoard(state: GameState) {
 
 @Composable
 private fun StatusTile(label: String, value: String, modifier: Modifier = Modifier) {
+  // Individual metric tile inside the shared status row.
   Surface(
     modifier = modifier,
     shape = RoundedCornerShape(20.dp),
@@ -250,6 +273,7 @@ private fun StatusTile(label: String, value: String, modifier: Modifier = Modifi
   }
 }
 
+/** Highlights a related block of text or controls inside a tinted surface. */
 @Composable
 fun AccentBlock(
   modifier: Modifier = Modifier,
@@ -269,6 +293,7 @@ fun AccentBlock(
   }
 }
 
+/** Displays a lightweight atmospheric callout for scene-setting details. */
 @Composable
 fun AmbientScenePanel(
   title: String,
@@ -313,6 +338,7 @@ fun AmbientScenePanel(
   }
 }
 
+/** Shows one ingredient row with optional selection and click handling. */
 @Composable
 fun IngredientBadge(
   name: String,

@@ -42,6 +42,7 @@ import com.example.moonbrewtavern.domain.model.VisitorDefinition
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
 import com.example.moonbrewtavern.ui.common.resolveVisitorDefinition
 
+/** Entrance screen where the player decides who gets a seat for the current night. */
 @Composable
 fun EntranceScreen(
   gameState: GameState,
@@ -54,12 +55,14 @@ fun EntranceScreen(
 ) {
   val freeSeats = (gameState.tavern.capacity - nightState.seatedVisitorIds.size).coerceAtLeast(0)
 
+  // Root scene container for the exterior tavern view.
   Box(
     modifier =
       modifier
         .fillMaxSize()
         .background(Color(0xFFBBD8EF)),
   ) {
+    // Full-screen painted background for the street scene.
     Image(
       painter = painterResource(R.drawable.tavern_bg),
       contentDescription = null,
@@ -67,6 +70,7 @@ fun EntranceScreen(
       contentScale = ContentScale.Crop,
     )
 
+    // Dark gradient overlay that keeps foreground UI readable.
     Box(
       modifier =
         Modifier
@@ -78,25 +82,31 @@ fun EntranceScreen(
           ),
     )
 
+    // Foreground UI stack for the sign, status, queue, and seated summary.
     Column(
       modifier = Modifier.fillMaxSize().padding(18.dp),
       verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+      // Top row with the tavern sign and nightly status/actions.
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
       ) {
+        // Tavern sign anchored to the upper-left corner.
         Image(
           painter = painterResource(R.drawable.ui_sign),
           contentDescription = null,
           modifier = Modifier.width(260.dp),
           contentScale = ContentScale.FillWidth,
         )
+
+        // Right-side status and primary action cluster.
         Column(
           horizontalAlignment = Alignment.End,
           verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+          // Night summary card with capacity, gold, and reputation.
           Surface(
             shape = RoundedCornerShape(18.dp),
             color = Color(0xD92A1D18),
@@ -111,6 +121,7 @@ fun EntranceScreen(
             }
           }
 
+          // CTA area that explains whether the tavern can be opened.
           Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.End,
@@ -139,6 +150,7 @@ fun EntranceScreen(
       Column(
         verticalArrangement = Arrangement.spacedBy(18.dp),
       ) {
+        // Right-aligned guest queue shown as large tappable cards.
         Box(
           modifier = Modifier.fillMaxWidth(),
           contentAlignment = Alignment.CenterEnd,
@@ -164,6 +176,7 @@ fun EntranceScreen(
         }
 
         if (nightState.seatedVisitorIds.isNotEmpty()) {
+          // Compact summary of guests already admitted for this night.
           Surface(
             shape = RoundedCornerShape(18.dp),
             color = Color(0xC1231916),
@@ -201,6 +214,7 @@ private fun QueueCard(
   onAdmit: () -> Unit,
   onReject: () -> Unit,
 ) {
+  // Single visitor card shown in the entrance queue.
   Surface(
     modifier = Modifier.width(216.dp),
     shape = RoundedCornerShape(22.dp),
@@ -211,6 +225,7 @@ private fun QueueCard(
       verticalArrangement = Arrangement.spacedBy(10.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+      // Large visitor portrait that also acts as a quick admit target.
       Box(
         modifier =
           Modifier
@@ -227,6 +242,8 @@ private fun QueueCard(
           contentScale = ContentScale.FillHeight,
         )
       }
+
+      // Visitor identity and short helper text under the portrait.
       Text(definition.name, style = MaterialTheme.typography.titleSmall, color = Color(0xFFF3E3CF), fontWeight = FontWeight.Bold)
       Text(definition.title, style = MaterialTheme.typography.labelSmall, color = Color(0xFFD9C1A7))
       Text(
@@ -234,6 +251,8 @@ private fun QueueCard(
         color = Color(0xFFCDB49A),
         style = MaterialTheme.typography.labelSmall,
       )
+
+      // Explicit admit/reject controls for players who prefer buttons over tapping the sprite.
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),

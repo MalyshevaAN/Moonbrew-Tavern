@@ -55,6 +55,7 @@ private data class RecipeNeed(
   val required: Int,
 )
 
+/** Recipe book screen used to inspect the active recipe before brewing. */
 @Composable
 fun RecipeBookScreen(
   scenario: GameScenario,
@@ -124,6 +125,7 @@ fun RecipeBookScreen(
   var selectedRecipeId by remember { mutableStateOf(recipes.first().id) }
   val selectedRecipe = recipes.first { it.id == selectedRecipeId }
 
+  // Full-screen recipe book surface with a dark reading-room palette.
   Box(
     modifier =
       modifier
@@ -139,6 +141,7 @@ fun RecipeBookScreen(
         )
         .padding(18.dp),
   ) {
+    // Split layout with the recipe list on the left and details on the right.
     Row(
       modifier = Modifier.fillMaxSize(),
       horizontalArrangement = Arrangement.spacedBy(18.dp),
@@ -170,6 +173,7 @@ private fun RecipeListPanel(
   onSelect: (RecipeBookEntry) -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  // Left navigation panel that lists available and locked recipes.
   Surface(
     modifier = modifier,
     shape = RoundedCornerShape(26.dp),
@@ -177,6 +181,8 @@ private fun RecipeListPanel(
     tonalElevation = 2.dp,
   ) {
     val scrollState = rememberScrollState()
+
+    // Scrollable recipe list with a header card at the top.
     Column(
       modifier =
         Modifier
@@ -185,6 +191,7 @@ private fun RecipeListPanel(
           .padding(16.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+      // Header card for the recipe index.
       Surface(
         shape = RoundedCornerShape(18.dp),
         color = Color(0xFF2C2230),
@@ -222,6 +229,7 @@ private fun RecipeListPanel(
             else -> Color(0xFF43312B)
           }
 
+        // Selectable recipe row with icon, title, and short description.
         Surface(
           modifier =
             Modifier
@@ -282,6 +290,7 @@ private fun RecipeDetailPanel(
   onStartBrewing: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  // Right detail panel for the currently selected recipe.
   Surface(
     modifier = modifier,
     shape = RoundedCornerShape(28.dp),

@@ -42,6 +42,7 @@ import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
 import com.example.moonbrewtavern.ui.common.GameStageLayout
 import com.example.moonbrewtavern.ui.common.SectionTitle
 
+/** Legacy scenario-based landing screen kept for previews and view-model tests. */
 @Composable
 fun MainScreen(
   onItemClick: (NavKey) -> Unit,
@@ -67,18 +68,22 @@ internal fun MainScreen(
   onStartDialogue: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  // Root scene container for the original static street screen.
   Box(
     modifier =
       modifier
         .fillMaxSize()
         .background(Color(0xFFBBD8EF)),
   ) {
+    // Painted background of the tavern exterior.
     Image(
       painter = painterResource(R.drawable.tavern_bg),
       contentDescription = null,
       modifier = Modifier.fillMaxSize(),
       contentScale = ContentScale.Crop,
     )
+
+    // Light atmospheric overlay that softens contrast behind the UI.
     Box(
       modifier =
         Modifier
@@ -90,6 +95,7 @@ internal fun MainScreen(
           ),
     )
 
+    // Foreground scene composition used by the legacy main screen.
     TavernSceneUi(
       scenario = scenario,
       onStartDialogue = onStartDialogue,
@@ -105,6 +111,7 @@ private fun TavernSceneUi(
   modifier: Modifier = Modifier,
 ) {
   Box(modifier = modifier) {
+    // Tavern sign in the upper-left corner.
     Image(
       painter = painterResource(R.drawable.ui_sign),
       contentDescription = null,
@@ -112,6 +119,7 @@ private fun TavernSceneUi(
       contentScale = ContentScale.FillWidth,
     )
 
+    // Day badge shown under the sign.
     Image(
       painter = painterResource(R.drawable.ui_day_panel),
       contentDescription = null,
@@ -119,6 +127,7 @@ private fun TavernSceneUi(
       contentScale = ContentScale.FillWidth,
     )
 
+    // Resource bar and settings affordance across the top edge.
     Image(
       painter = painterResource(R.drawable.ui_resource_bar),
       contentDescription = null,
@@ -133,6 +142,7 @@ private fun TavernSceneUi(
       contentScale = ContentScale.FillBounds,
     )
 
+    // Bartender and bar composition anchored to the bottom-right.
     Image(
       painter = painterResource(R.drawable.bartender_bar),
       contentDescription = null,
@@ -140,6 +150,7 @@ private fun TavernSceneUi(
       contentScale = ContentScale.FillWidth,
     )
 
+    // Static guest queue used by the original demo flow.
     GuestQueue(
       onStartDialogue = onStartDialogue,
       modifier = Modifier.align(Alignment.BottomStart).offset(x = 16.dp, y = (-22).dp),
@@ -152,6 +163,7 @@ private fun GuestQueue(
   onStartDialogue: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  // Horizontal queue of stylized guest sprites.
   Box(modifier = modifier.fillMaxWidth(0.5f).height(150.dp)) {
     QueueSprite(R.drawable.npc_hood, "hooded guest", Modifier.align(Alignment.BottomStart).offset(x = 8.dp))
     QueueSprite(R.drawable.npc_witch, "witch", Modifier.align(Alignment.BottomStart).offset(x = 84.dp))
@@ -179,6 +191,7 @@ private fun QueueSprite(
     modifier = modifier,
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
+    // Guest sprite card, optionally highlighted as the next interactive guest.
     Box(
       modifier =
         Modifier
@@ -199,6 +212,8 @@ private fun QueueSprite(
         contentScale = ContentScale.FillHeight,
       )
     }
+
+    // Small chip shown only for the highlighted next guest.
     if (highlighted) {
       Box(
         modifier =
@@ -228,6 +243,7 @@ private fun LoadingMainScreen(modifier: Modifier = Modifier) {
     state = DefaultDataRepository().scenario.initialState,
     modifier = modifier,
     sceneContent = {
+      // Loading indicator placed in the scene column.
       CircularProgressIndicator()
       Text(
         text = "Building the first night...",
@@ -235,6 +251,7 @@ private fun LoadingMainScreen(modifier: Modifier = Modifier) {
       )
     },
     detailContent = {
+      // Short status note in the detail column.
       SectionTitle("Status")
       Text(
         text = "Loading hardcoded scenario content for the first guest and first drink.",
@@ -254,6 +271,7 @@ private fun ErrorMainScreen(throwableMessage: String?, modifier: Modifier = Modi
     state = DefaultDataRepository().scenario.initialState,
     modifier = modifier,
     sceneContent = {
+      // Error message displayed in the primary scene area.
       SectionTitle("Error details")
       Text(
         text = throwableMessage ?: "Unknown issue",

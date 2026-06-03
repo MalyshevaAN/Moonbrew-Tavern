@@ -1,5 +1,6 @@
 package com.example.moonbrewtavern.domain.model
 
+/** Runtime guest model used by the currently active dialogue and result screens. */
 data class Visitor(
   val id: String,
   val name: String,
@@ -10,6 +11,7 @@ data class Visitor(
   val favoriteFlavor: String,
 )
 
+/** Lightweight mood buckets for visitor presentation. */
 enum class VisitorMood {
   Curious,
   Guarded,

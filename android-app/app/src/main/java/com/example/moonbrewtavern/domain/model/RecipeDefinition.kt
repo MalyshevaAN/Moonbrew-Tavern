@@ -1,5 +1,6 @@
 package com.example.moonbrewtavern.domain.model
 
+/** Content-layer recipe definition used for unlocks, rewards, and flavor matching. */
 data class RecipeDefinition(
   val id: String,
   val name: String,
@@ -11,6 +12,7 @@ data class RecipeDefinition(
   val rewardReputation: Int = 0,
 )
 
+/** Describes how a recipe becomes available in the long-term progression layer. */
 sealed interface UnlockRule {
   data object Default : UnlockRule
 

@@ -18,6 +18,7 @@ import com.example.moonbrewtavern.ui.recipebook.RecipeBookScreen
 import com.example.moonbrewtavern.ui.result.ResultScreen
 import com.example.moonbrewtavern.ui.tavernroom.TavernRoomScreen
 
+/** Wires the repository-backed night flow into the app navigation graph. */
 @Composable
 fun MainNavigation() {
   val repository = remember { DefaultDataRepository() }
