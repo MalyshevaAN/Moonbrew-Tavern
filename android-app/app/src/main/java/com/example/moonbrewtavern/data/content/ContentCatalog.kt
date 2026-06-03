@@ -13,6 +13,7 @@ import com.example.moonbrewtavern.data.content.visitors.mirelleVisitor
 import com.example.moonbrewtavern.domain.model.Visitor
 import com.example.moonbrewtavern.domain.model.VisitorDefinition
 
+/** Central registry for reusable visitors, recipes, and ingredients. */
 object ContentCatalog {
   val visitors: List<Visitor> = listOf(brannVisitor, mirelleVisitor, lyraVisitor, corinVisitor)
   val visitorDefinitions: List<VisitorDefinition> = listOf(brannDefinition, mirelleDefinition, lyraDefinition, corinDefinition)
@@ -45,6 +46,7 @@ object ContentCatalog {
   val visitorsById = visitors.associateBy(Visitor::id)
   val visitorDefinitionsById = visitorDefinitions.associateBy(VisitorDefinition::id)
 
+  /** Fails fast when content ids that should be unique collide inside a catalog list. */
   private fun requireUniqueIds(label: String, ids: List<String>) {
     val duplicateIds = ids.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
     check(duplicateIds.isEmpty()) {

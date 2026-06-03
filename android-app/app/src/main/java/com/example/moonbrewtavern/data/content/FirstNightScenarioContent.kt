@@ -10,6 +10,7 @@ import com.example.moonbrewtavern.domain.model.ServingOutcome
 import com.example.moonbrewtavern.domain.model.Tavern
 import com.example.moonbrewtavern.domain.model.Visitor
 
+/** Default successful outcome for the first-night visitor flow. */
 val firstNightOutcome =
   ServingOutcome(
     title = "A promising first regular",
@@ -19,8 +20,10 @@ val firstNightOutcome =
     reputationReward = 2,
   )
 
+/** Flavor hint shown during brewing for the current starter recipe. */
 const val firstNightBrewingHint = "Keep the drink clean and bright. The warmth should arrive late, not overwhelm the first sip."
 
+/** Narrative metadata for the tavern at the start of the demo. */
 val firstNightTavern =
   Tavern(
     name = "Moonbrew Tavern",
@@ -28,6 +31,7 @@ val firstNightTavern =
     atmosphere = "Lantern glow, rain on the windows, and a counter that still smells of fresh cedar.",
   )
 
+/** Builds a scenario snapshot for the provided visitor using the shared starter content. */
 fun scenarioForVisitor(
   visitor: Visitor,
   initialState: GameState = GameState(day = 3, gold = 12, reputation = 4, phase = GamePhase.Entrance),
@@ -42,4 +46,5 @@ fun scenarioForVisitor(
     outcome = firstNightOutcome,
   )
 
+/** Default scenario preview used by tests, previews, and the original single-guest flow. */
 val firstNightScenario = scenarioForVisitor(lyraVisitor)
