@@ -42,6 +42,7 @@ private val LightColorScheme =
     onSurface = Moss20,
   )
 
+/** Applies the shared Material theme used across the Moonbrew Tavern demo. */
 @Composable
 fun MoonbrewTavernTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
