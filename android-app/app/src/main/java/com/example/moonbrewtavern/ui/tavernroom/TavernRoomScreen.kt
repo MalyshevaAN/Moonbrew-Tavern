@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,11 +30,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.moonbrewtavern.R
+import com.example.moonbrewtavern.data.DefaultDataRepository
+import com.example.moonbrewtavern.data.content.ContentCatalog
+import com.example.moonbrewtavern.domain.model.GameState
+import com.example.moonbrewtavern.domain.model.NightState
+import com.example.moonbrewtavern.domain.model.VisitorDefinition
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
 
 @Composable
 fun TavernRoomScreen(
-  onGuestClick: () -> Unit,
+  gameState: GameState,
+  nightState: NightState,
+  visitorDefinitions: Map<String, VisitorDefinition>,
+  onGuestClick: (String) -> Unit,
   onBackToStreet: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
@@ -57,6 +66,9 @@ fun TavernRoomScreen(
     )
 
     TavernRoomOverlay(
+      gameState = gameState,
+      nightState = nightState,
+      visitorDefinitions = visitorDefinitions,
       onGuestClick = onGuestClick,
       onBackToStreet = onBackToStreet,
       modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 14.dp),
@@ -66,7 +78,10 @@ fun TavernRoomScreen(
 
 @Composable
 private fun TavernRoomOverlay(
-  onGuestClick: () -> Unit,
+  gameState: GameState,
+  nightState: NightState,
+  visitorDefinitions: Map<String, VisitorDefinition>,
+  onGuestClick: (String) -> Unit,
   onBackToStreet: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
@@ -102,31 +117,54 @@ private fun TavernRoomOverlay(
       IconTile(R.drawable.tavern_room_upgrades_icon, "Улучшения")
     }
 
-    // Левый гость за столом.
-    GuestAtTable(
-      guestRes = R.drawable.tavern_room_guest_one,
-      statusRes = R.drawable.tavern_room_status_drinking,
-      statusLabel = "Пьет",
-      modifier = Modifier.align(Alignment.BottomStart).offset(x = 118.dp, y = (-38).dp),
-    )
+    val seatAnchors =
+      listOf(
+        Modifier.align(Alignment.BottomStart).offset(x = 118.dp, y = (-38).dp),
+        Modifier.align(Alignment.BottomCenter).offset(x = (-16).dp, y = (-54).dp),
+        Modifier.align(Alignment.BottomEnd).offset(x = (-116).dp, y = (-34).dp),
+      )
 
-    // Центральный гость: это текущая интерактивная Лира.
-    GuestAtTable(
-      guestRes = R.drawable.tavern_room_guest_two,
-      statusRes = R.drawable.tavern_room_status_wants_beer,
-      statusLabel = "Лира ждет заказ",
-      highlighted = true,
-      onClick = onGuestClick,
-      modifier = Modifier.align(Alignment.BottomCenter).offset(x = (-16).dp, y = (-54).dp),
-    )
+    nightState.seatedVisitorIds.take(seatAnchors.size).forEachIndexed { index, visitorId ->
+      val definition = visitorDefinitions[visitorId] ?: return@forEachIndexed
+      val isCurrent = visitorId == nightState.currentVisitorId
+      GuestAtTable(
+        guestRes = definition.assets.tavernSeatRes,
+        statusRes = if (isCurrent) R.drawable.tavern_room_status_wants_beer else R.drawable.tavern_room_status_drinking,
+        statusLabel = if (isCurrent) "${definition.name} ждет заказ" else "${definition.name} отдыхает",
+        name = definition.name,
+        highlighted = isCurrent,
+        onClick = { onGuestClick(visitorId) },
+        modifier = seatAnchors[index],
+      )
+    }
 
-    // Правый гость за столом.
-    GuestAtTable(
-      guestRes = R.drawable.tavern_room_guest_three,
-      statusRes = R.drawable.tavern_room_status_wants_leave,
-      statusLabel = "Хочет уйти",
-      modifier = Modifier.align(Alignment.BottomEnd).offset(x = (-116).dp, y = (-34).dp),
-    )
+    if (nightState.seatedVisitorIds.isEmpty()) {
+      Surface(
+        modifier = Modifier.align(Alignment.BottomCenter).offset(y = (-70).dp),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xCC281B18),
+      ) {
+        Text(
+          text = "Пока пусто. На улице еще ждут путники.",
+          modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+          color = Color(0xFFF4E7C6),
+          style = MaterialTheme.typography.bodyMedium,
+        )
+      }
+    }
+
+    Surface(
+      modifier = Modifier.align(Alignment.TopCenter).offset(y = 8.dp),
+      shape = RoundedCornerShape(16.dp),
+      color = Color(0xCC281B18),
+    ) {
+      Text(
+        text = "В зале ${nightState.seatedVisitorIds.size}/${gameState.tavern.capacity} • Золото ${gameState.gold} • Репутация ${gameState.reputation}",
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+        color = Color(0xFFF3E5C9),
+        style = MaterialTheme.typography.labelLarge,
+      )
+    }
   }
 }
 
@@ -185,9 +223,10 @@ private fun GuestAtTable(
   guestRes: Int,
   statusRes: Int,
   statusLabel: String,
+  name: String,
   modifier: Modifier = Modifier,
   highlighted: Boolean = false,
-  onClick: (() -> Unit)? = null,
+  onClick: () -> Unit,
 ) {
   Column(
     modifier = modifier,
@@ -228,7 +267,7 @@ private fun GuestAtTable(
               Modifier
             },
           )
-          .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+          .clickable(onClick = onClick),
     ) {
       Image(
         painter = painterResource(guestRes),
@@ -249,7 +288,7 @@ private fun GuestAtTable(
             .padding(horizontal = 12.dp, vertical = 5.dp),
       ) {
         Text(
-          text = "Лира",
+          text = name,
           color = Color(0xFFF4E7C6),
           style = MaterialTheme.typography.labelMedium,
           fontWeight = FontWeight.SemiBold,
@@ -262,7 +301,18 @@ private fun GuestAtTable(
 @Preview(showBackground = true, widthDp = 960, heightDp = 540)
 @Composable
 private fun TavernRoomScreenPreview() {
+  val repository = DefaultDataRepository().apply {
+    admitVisitor("brann")
+    admitVisitor("lyra")
+    enterTavern()
+  }
   MoonbrewTavernTheme {
-    TavernRoomScreen(onGuestClick = {}, onBackToStreet = {})
+    TavernRoomScreen(
+      gameState = repository.gameState.value,
+      nightState = repository.nightState.value,
+      visitorDefinitions = ContentCatalog.visitorDefinitionsById,
+      onGuestClick = {},
+      onBackToStreet = {},
+    )
   }
 }

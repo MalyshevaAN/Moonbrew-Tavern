@@ -8,6 +8,7 @@ import com.example.moonbrewtavern.domain.model.GameScenario
 import com.example.moonbrewtavern.domain.model.GameState
 import com.example.moonbrewtavern.domain.model.ServingOutcome
 import com.example.moonbrewtavern.domain.model.Tavern
+import com.example.moonbrewtavern.domain.model.Visitor
 
 val firstNightOutcome =
   ServingOutcome(
@@ -20,18 +21,25 @@ val firstNightOutcome =
 
 const val firstNightBrewingHint = "Keep the drink clean and bright. The warmth should arrive late, not overwhelm the first sip."
 
-val firstNightScenario =
+val firstNightTavern =
+  Tavern(
+    name = "Moonbrew Tavern",
+    level = 1,
+    atmosphere = "Lantern glow, rain on the windows, and a counter that still smells of fresh cedar.",
+  )
+
+fun scenarioForVisitor(
+  visitor: Visitor,
+  initialState: GameState = GameState(day = 3, gold = 12, reputation = 4, phase = GamePhase.Entrance),
+): GameScenario =
   GameScenario(
-    tavern =
-      Tavern(
-        name = "Moonbrew Tavern",
-        level = 1,
-        atmosphere = "Lantern glow, rain on the windows, and a counter that still smells of fresh cedar.",
-      ),
-    initialState = GameState(day = 3, gold = 12, reputation = 4, phase = GamePhase.Tavern),
-    visitor = lyraVisitor,
+    tavern = firstNightTavern,
+    initialState = initialState,
+    visitor = visitor,
     recipe = starglowTonicRecipe,
     availableIngredients = firstNightIngredients,
     brewingHint = firstNightBrewingHint,
     outcome = firstNightOutcome,
   )
+
+val firstNightScenario = scenarioForVisitor(lyraVisitor)

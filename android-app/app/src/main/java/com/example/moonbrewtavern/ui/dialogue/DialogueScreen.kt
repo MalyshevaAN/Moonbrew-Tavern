@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.moonbrewtavern.R
 import com.example.moonbrewtavern.data.DefaultDataRepository
+import com.example.moonbrewtavern.data.content.ContentCatalog
 import com.example.moonbrewtavern.domain.model.GameScenario
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
 
@@ -94,10 +95,16 @@ private fun DialogueSceneOverlay(
     )
 
     // Центральная сцена с Лирой и барменом.
-    CharacterStage(modifier = Modifier.align(Alignment.Center).offset(x = (-8).dp, y = 34.dp))
+    CharacterStage(
+      visitorId = scenario.visitor.id,
+      modifier = Modifier.align(Alignment.Center).offset(x = (-8).dp, y = 34.dp),
+    )
 
     // Правая карточка персонажа.
     ProfilePanel(
+      visitorName = scenario.visitor.name,
+      visitorTitle = scenario.visitor.title,
+      requestLine = scenario.visitor.requestLine,
       modifier = Modifier.align(Alignment.CenterEnd).offset(x = (-6).dp, y = 18.dp),
     )
 
@@ -129,12 +136,16 @@ private fun BubbleText(
 }
 
 @Composable
-private fun CharacterStage(modifier: Modifier = Modifier) {
+private fun CharacterStage(
+  visitorId: String,
+  modifier: Modifier = Modifier,
+) {
+  val visitorPortraitRes = ContentCatalog.visitorDefinitionsById[visitorId]?.assets?.dialoguePortraitRes ?: R.drawable.dialogue_visitor_lyra
   Box(
     modifier = modifier.width(446.dp).height(262.dp), // Общая зона двух персонажей.
   ) {
     Image(
-      painter = painterResource(R.drawable.dialogue_visitor_lyra),
+      painter = painterResource(visitorPortraitRes),
       contentDescription = null,
       modifier = Modifier.width(154.dp).align(Alignment.BottomStart).offset(x = 14.dp), // Лира слева.
       contentScale = ContentScale.FillWidth,
@@ -150,6 +161,9 @@ private fun CharacterStage(modifier: Modifier = Modifier) {
 
 @Composable
 private fun ProfilePanel(
+  visitorName: String,
+  visitorTitle: String,
+  requestLine: String,
   modifier: Modifier = Modifier,
 ) {
   Box(modifier = modifier.width(248.dp)) { // Размер правой карточки.
@@ -159,6 +173,14 @@ private fun ProfilePanel(
       modifier = Modifier.fillMaxWidth(),
       contentScale = ContentScale.FillWidth,
     )
+    Column(
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 22.dp),
+      verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+      Text(visitorName, color = Color(0xFFF6E8D7), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+      Text(visitorTitle, color = Color(0xFFDABEA1), style = MaterialTheme.typography.bodySmall)
+      Text(requestLine, color = Color(0xFFE9D7C2), style = MaterialTheme.typography.bodySmall, maxLines = 5, overflow = TextOverflow.Ellipsis)
+    }
   }
 }
 

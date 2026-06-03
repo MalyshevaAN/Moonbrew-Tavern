@@ -9,6 +9,7 @@ data class NightState(
 
 enum class NightPhase {
   Entrance,
+  Tavern,
   Dialogue,
   RecipeBook,
   Brewing,
