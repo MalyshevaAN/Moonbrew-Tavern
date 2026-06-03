@@ -1,5 +1,6 @@
 package com.example.moonbrewtavern.domain.model
 
+/** Persistent game progress that survives across individual nights and guests. */
 data class GameState(
   val day: Int,
   val gold: Int,
