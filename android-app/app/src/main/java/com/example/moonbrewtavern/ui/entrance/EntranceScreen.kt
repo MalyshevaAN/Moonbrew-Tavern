@@ -78,7 +78,7 @@ fun EntranceScreen(
 
     Column(
       modifier = Modifier.fillMaxSize().padding(18.dp),
-      verticalArrangement = Arrangement.SpaceBetween,
+      verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
       Row(
         modifier = Modifier.fillMaxWidth(),
@@ -91,17 +91,45 @@ fun EntranceScreen(
           modifier = Modifier.width(260.dp),
           contentScale = ContentScale.FillWidth,
         )
-        Surface(
-          shape = RoundedCornerShape(18.dp),
-          color = Color(0xD92A1D18),
+        Column(
+          horizontalAlignment = Alignment.End,
+          verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-          Column(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+          Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = Color(0xD92A1D18),
           ) {
-            Text("Ночь ${gameState.day}", color = Color(0xFFF4E7C6), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("Свободно мест: $freeSeats/${gameState.tavern.capacity}", color = Color(0xFFE6CFAF), style = MaterialTheme.typography.bodyMedium)
-            Text("Золото ${gameState.gold} • Репутация ${gameState.reputation}", color = Color(0xFFE6CFAF), style = MaterialTheme.typography.bodyMedium)
+            Column(
+              modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+              verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+              Text("Ночь ${gameState.day}", color = Color(0xFFF4E7C6), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+              Text("Свободно мест: $freeSeats/${gameState.tavern.capacity}", color = Color(0xFFE6CFAF), style = MaterialTheme.typography.bodyMedium)
+              Text("Золото ${gameState.gold} • Репутация ${gameState.reputation}", color = Color(0xFFE6CFAF), style = MaterialTheme.typography.bodyMedium)
+            }
+          }
+
+          Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.End,
+          ) {
+            Text(
+              text =
+                if (nightState.seatedVisitorIds.isNotEmpty()) {
+                  "Гости готовы. Можно открывать зал."
+                } else {
+                  "Сначала впусти хотя бы одного гостя."
+                },
+              color = Color(0xFFE6CFAF),
+              style = MaterialTheme.typography.bodySmall,
+            )
+            Button(
+              onClick = onEnterTavern,
+              enabled = nightState.seatedVisitorIds.isNotEmpty(),
+              modifier = Modifier.width(220.dp).height(54.dp),
+            ) {
+              Text("Открыть зал", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
           }
         }
       }
@@ -167,16 +195,8 @@ fun EntranceScreen(
             }
           }
         }
+        }
       }
-
-      Button(
-        onClick = onEnterTavern,
-        enabled = nightState.seatedVisitorIds.isNotEmpty(),
-        modifier = Modifier.align(Alignment.End).width(220.dp).height(54.dp),
-      ) {
-        Text("Открыть зал", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-      }
-    }
   }
 }
 
@@ -188,13 +208,13 @@ private fun QueueCard(
   onReject: () -> Unit,
 ) {
   Surface(
-    modifier = Modifier.width(220.dp),
+    modifier = Modifier.width(180.dp),
     shape = RoundedCornerShape(22.dp),
     color = Color(0xD1261C19),
   ) {
     Column(
-      modifier = Modifier.fillMaxWidth().padding(14.dp),
-      verticalArrangement = Arrangement.spacedBy(10.dp),
+      modifier = Modifier.fillMaxWidth().padding(12.dp),
+      verticalArrangement = Arrangement.spacedBy(8.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
       Box(
@@ -209,12 +229,12 @@ private fun QueueCard(
         Image(
           painter = painterResource(definition.assets.queueRes),
           contentDescription = definition.name,
-          modifier = Modifier.height(132.dp),
+          modifier = Modifier.height(110.dp),
           contentScale = ContentScale.FillHeight,
         )
       }
-      Text(definition.name, style = MaterialTheme.typography.titleMedium, color = Color(0xFFF3E3CF), fontWeight = FontWeight.Bold)
-      Text(definition.title, style = MaterialTheme.typography.bodySmall, color = Color(0xFFD9C1A7))
+      Text(definition.name, style = MaterialTheme.typography.titleSmall, color = Color(0xFFF3E3CF), fontWeight = FontWeight.Bold)
+      Text(definition.title, style = MaterialTheme.typography.labelSmall, color = Color(0xFFD9C1A7))
       Text(
         text = if (admitEnabled) "Тап по гостю тоже впускает его в таверну." else "Свободных мест больше нет.",
         color = Color(0xFFCDB49A),
