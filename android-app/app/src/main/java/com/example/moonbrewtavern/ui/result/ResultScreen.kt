@@ -10,10 +10,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.moonbrewtavern.data.DefaultDataRepository
+import com.example.moonbrewtavern.data.content.firstNightOutcome
+import com.example.moonbrewtavern.data.content.firstNightScenario
 import com.example.moonbrewtavern.domain.model.BrewResult
 import com.example.moonbrewtavern.domain.model.GamePhase
 import com.example.moonbrewtavern.domain.model.GameScenario
+import com.example.moonbrewtavern.domain.model.GameState
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
 import com.example.moonbrewtavern.ui.common.AccentBlock
 import com.example.moonbrewtavern.ui.common.GameStageLayout
@@ -23,18 +25,16 @@ import com.example.moonbrewtavern.ui.common.SectionTitle
 @Composable
 fun ResultScreen(
   scenario: GameScenario,
+  gameState: GameState,
   brewResult: BrewResult,
   onReturnToTavern: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  val finalGold = scenario.initialState.gold + brewResult.outcome.goldReward
-  val finalReputation = scenario.initialState.reputation + brewResult.outcome.reputationReward
-
   GameStageLayout(
     phaseLabel = "Result",
     title = brewResult.outcome.title,
     subtitle = brewResult.outcome.summary,
-    state = scenario.initialState.copy(phase = GamePhase.Result, gold = finalGold, reputation = finalReputation),
+    state = gameState.copy(phase = GamePhase.Result),
     modifier = modifier,
     actionLabel = "Return to tavern",
     actionNote = "This loop is now choice-driven: the tray you built on the brewing screen directly shaped this reaction.",
@@ -102,11 +102,21 @@ fun ResultScreen(
 @Preview(showBackground = true, widthDp = 640, heightDp = 360)
 @Composable
 private fun ResultScreenPreview() {
-  val repository = DefaultDataRepository()
   MoonbrewTavernTheme {
     ResultScreen(
-      scenario = repository.scenario,
-      brewResult = repository.evaluateBrew(setOf("moonmint", "emberzest", "silverfoam")),
+      scenario = firstNightScenario,
+      gameState = firstNightScenario.initialState.copy(
+        phase = GamePhase.Result,
+        gold = firstNightScenario.initialState.gold + firstNightOutcome.goldReward,
+        reputation = firstNightScenario.initialState.reputation + firstNightOutcome.reputationReward,
+      ),
+      brewResult =
+        BrewResult(
+          selectedIngredients = firstNightScenario.recipe.requiredIngredients,
+          matchedIngredients = firstNightScenario.recipe.requiredIngredients.size,
+          isExactMatch = true,
+          outcome = firstNightOutcome,
+        ),
       onReturnToTavern = {},
     )
   }

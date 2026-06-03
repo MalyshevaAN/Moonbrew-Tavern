@@ -317,9 +317,9 @@ fun AmbientScenePanel(
 fun IngredientBadge(
   name: String,
   note: String,
+  modifier: Modifier = Modifier,
   selected: Boolean = false,
   enabled: Boolean = true,
-  modifier: Modifier = Modifier,
   onClick: (() -> Unit)? = null,
 ) {
   val tint =
