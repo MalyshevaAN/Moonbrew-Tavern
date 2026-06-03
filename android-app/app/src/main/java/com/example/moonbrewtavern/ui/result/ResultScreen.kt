@@ -41,6 +41,7 @@ fun ResultScreen(
     actionNote = "This loop is now choice-driven: the tray you built on the brewing screen directly shaped this reaction.",
     onAction = onReturnToTavern,
     sceneContent = {
+      // Hero reaction quote and short narrative beat from the guest.
       AccentBlock {
         Text(
           text = "\"${brewResult.outcome.reactionLine}\"",
@@ -58,6 +59,8 @@ fun ResultScreen(
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
       }
+
+      // Ingredient recap for the drink that was actually served.
       SectionTitle("What you actually served")
       if (brewResult.selectedIngredients.isEmpty()) {
         Text(
@@ -75,12 +78,15 @@ fun ResultScreen(
       }
     },
     detailContent = {
+      // Mechanical reward summary for the served drink.
       SectionTitle("Outcome summary")
       Row(horizontalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.fillMaxWidth()) {
         InfoLine(label = "Gold gained", value = "+${brewResult.outcome.goldReward}")
         InfoLine(label = "Rep gained", value = "+${brewResult.outcome.reputationReward}")
         InfoLine(label = "Match", value = "${brewResult.matchedIngredients}/${scenario.recipe.requiredIngredients.size}")
       }
+
+      // Interprets the brew quality in plain language.
       AccentBlock(accent = MaterialTheme.colorScheme.tertiaryContainer) {
         Text(
           text =
@@ -93,6 +99,8 @@ fun ResultScreen(
           color = MaterialTheme.colorScheme.onTertiaryContainer,
         )
       }
+
+      // Follow-up notes describing where this system can grow next.
       SectionTitle("Next useful layer")
       InfoLine(label = "Mechanical", value = "Turn this into true recipe validation and scoring")
       InfoLine(label = "Narrative", value = "Let this outcome alter relationship state and future dialogue")
