@@ -38,6 +38,12 @@ fun MainNavigation() {
   NavDisplay(
     backStack = backStack,
     onBack = {
+      if (backStack.lastOrNull() == Result) {
+        repository.confirmGuestDeparture()
+        backStack.removeLastOrNull()
+        return@NavDisplay
+      }
+
       backStack.removeLastOrNull()
       when (backStack.lastOrNull()) {
         Main -> repository.returnToEntrance()

@@ -273,36 +273,37 @@ class DefaultDataRepository : DataRepository {
     if (guest.status != TavernGuestStatus.WantsToLeave) return
 
     val departureResult = guest.brewResult ?: unresolvedDepartureFor(visitorId)
+    val updatedGuests = _nightState.value.guests.filterNot { it.visitorId == visitorId }
+
     _lastBrewResult.value = departureResult
     _nightState.update { state ->
       state.copy(
+        guests = updatedGuests,
         currentVisitorId = visitorId,
         phase = NightPhase.Result,
       )
     }
     _gameState.update { it.copy(phase = GamePhase.Result) }
+    syncOccupiedSeats(updatedGuests.size)
     rebuildScenario(visitorId)
   }
 
   override fun confirmGuestDeparture() {
     val visitorId = _nightState.value.currentVisitorId ?: return
-    val guest = _nightState.value.guests.firstOrNull { it.visitorId == visitorId } ?: return
-    if (guest.status != TavernGuestStatus.WantsToLeave) return
-
-    val brewResult = guest.brewResult
-    val outcome = guest.servedOutcome
+    val brewResult = _lastBrewResult.value ?: unresolvedDepartureFor(visitorId)
+    val outcome = brewResult.outcome
     val currentVisitorState = _gameState.value.visitorStates[visitorId] ?: VisitorState()
     val relationshipGain =
       when {
-        brewResult?.isExactMatch == true -> 2
-        brewResult?.matchedIngredients ?: 0 >= 2 -> 1
+        brewResult.isExactMatch -> 2
+        brewResult.matchedIngredients >= 2 -> 1
         else -> 0
       }
 
     _gameState.update { state ->
       state.copy(
-        gold = state.gold + (outcome?.goldReward ?: 0),
-        reputation = state.reputation + (outcome?.reputationReward ?: 0),
+        gold = state.gold + outcome.goldReward,
+        reputation = state.reputation + outcome.reputationReward,
         visitorStates =
           state.visitorStates + (
             visitorId to
@@ -314,7 +315,7 @@ class DefaultDataRepository : DataRepository {
       )
     }
 
-    val updatedGuests = _nightState.value.guests.filterNot { it.visitorId == visitorId }
+    val updatedGuests = _nightState.value.guests
     val nextCurrentVisitorId =
       updatedGuests.firstOrNull { it.status == TavernGuestStatus.WaitingForOrder }?.visitorId
         ?: updatedGuests.firstOrNull { it.status == TavernGuestStatus.WantsToLeave }?.visitorId
