@@ -56,6 +56,7 @@ import com.example.moonbrewtavern.data.DefaultDataRepository
 import com.example.moonbrewtavern.domain.model.GameScenario
 import com.example.moonbrewtavern.domain.model.Ingredient
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
+import java.util.Locale
 import kotlin.math.roundToInt
 
 private data class BrewTone(
@@ -662,7 +663,7 @@ private fun currentStirElapsedMs(baseMs: Long, dragStartMs: Long?): Long =
     baseMs + (SystemClock.elapsedRealtime() - dragStartMs)
   }
 
-private fun Float.formatOneDecimal(): String = String.format("%.1f", this)
+private fun Float.formatOneDecimal(): String = String.format(Locale.ROOT, "%.1f", this)
 
 @Preview(showBackground = true, widthDp = 960, heightDp = 540)
 @Composable

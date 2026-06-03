@@ -33,7 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.moonbrewtavern.R
-import com.example.moonbrewtavern.data.DefaultDataRepository
+import com.example.moonbrewtavern.data.content.firstNightScenario
 import com.example.moonbrewtavern.data.content.ContentCatalog
 import com.example.moonbrewtavern.domain.model.GameState
 import com.example.moonbrewtavern.domain.model.NightState
@@ -265,11 +265,10 @@ private fun QueueCard(
 @Preview(showBackground = true, widthDp = 960, heightDp = 540)
 @Composable
 private fun EntranceScreenPreview() {
-  val repository = DefaultDataRepository()
   MoonbrewTavernTheme {
     EntranceScreen(
-      gameState = repository.gameState.value,
-      nightState = repository.nightState.value,
+      gameState = firstNightScenario.initialState,
+      nightState = NightState(queueVisitorIds = ContentCatalog.starterQueueVisitorIds),
       visitorDefinitions = ContentCatalog.visitorDefinitionsById,
       onAdmit = {},
       onReject = {},

@@ -10,8 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.moonbrewtavern.data.DefaultDataRepository
 import com.example.moonbrewtavern.data.content.firstNightOutcome
+import com.example.moonbrewtavern.data.content.firstNightScenario
 import com.example.moonbrewtavern.domain.model.BrewResult
 import com.example.moonbrewtavern.domain.model.GamePhase
 import com.example.moonbrewtavern.domain.model.GameScenario
@@ -102,16 +102,21 @@ fun ResultScreen(
 @Preview(showBackground = true, widthDp = 640, heightDp = 360)
 @Composable
 private fun ResultScreenPreview() {
-  val repository = DefaultDataRepository()
   MoonbrewTavernTheme {
     ResultScreen(
-      scenario = repository.scenario,
-      gameState = repository.gameState.value.copy(
+      scenario = firstNightScenario,
+      gameState = firstNightScenario.initialState.copy(
         phase = GamePhase.Result,
-        gold = repository.gameState.value.gold + firstNightOutcome.goldReward,
-        reputation = repository.gameState.value.reputation + firstNightOutcome.reputationReward,
+        gold = firstNightScenario.initialState.gold + firstNightOutcome.goldReward,
+        reputation = firstNightScenario.initialState.reputation + firstNightOutcome.reputationReward,
       ),
-      brewResult = repository.evaluateBrew(setOf("moonmint", "emberzest", "silverfoam")),
+      brewResult =
+        BrewResult(
+          selectedIngredients = firstNightScenario.recipe.requiredIngredients,
+          matchedIngredients = firstNightScenario.recipe.requiredIngredients.size,
+          isExactMatch = true,
+          outcome = firstNightOutcome,
+        ),
       onReturnToTavern = {},
     )
   }

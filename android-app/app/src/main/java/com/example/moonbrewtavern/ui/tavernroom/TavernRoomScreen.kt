@@ -30,8 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.moonbrewtavern.R
-import com.example.moonbrewtavern.data.DefaultDataRepository
 import com.example.moonbrewtavern.data.content.ContentCatalog
+import com.example.moonbrewtavern.data.content.firstNightScenario
 import com.example.moonbrewtavern.domain.model.GameState
 import com.example.moonbrewtavern.domain.model.NightState
 import com.example.moonbrewtavern.domain.model.VisitorDefinition
@@ -301,15 +301,10 @@ private fun GuestAtTable(
 @Preview(showBackground = true, widthDp = 960, heightDp = 540)
 @Composable
 private fun TavernRoomScreenPreview() {
-  val repository = DefaultDataRepository().apply {
-    admitVisitor("brann")
-    admitVisitor("lyra")
-    enterTavern()
-  }
   MoonbrewTavernTheme {
     TavernRoomScreen(
-      gameState = repository.gameState.value,
-      nightState = repository.nightState.value,
+      gameState = firstNightScenario.initialState.copy(tavern = firstNightScenario.initialState.tavern.copy(occupiedSeats = 2)),
+      nightState = NightState(seatedVisitorIds = listOf("brann", "lyra"), currentVisitorId = "lyra"),
       visitorDefinitions = ContentCatalog.visitorDefinitionsById,
       onGuestClick = {},
       onBackToStreet = {},
