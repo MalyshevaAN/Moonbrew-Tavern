@@ -39,6 +39,8 @@ private class FakeMyModelRepository : DataRepository {
 
   override fun serveBrew(selectedIngredientIds: Set<String>): BrewResult = evaluateBrew(selectedIngredientIds)
 
+  override fun collectGuestDeparture(visitorId: String) = Unit
+
   override fun startNight() = Unit
 
   override fun admitVisitor(visitorId: String) = Unit

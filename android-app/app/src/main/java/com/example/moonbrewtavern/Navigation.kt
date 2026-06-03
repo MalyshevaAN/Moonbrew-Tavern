@@ -1,6 +1,7 @@
 package com.example.moonbrewtavern
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -25,6 +26,14 @@ fun MainNavigation() {
   val gameState by repository.gameState.collectAsStateWithLifecycle()
   val nightState by repository.nightState.collectAsStateWithLifecycle()
   val brewResult by repository.lastBrewResult.collectAsStateWithLifecycle()
+
+  LaunchedEffect(gameState.phase, backStack.size) {
+    if (gameState.phase == com.example.moonbrewtavern.domain.model.GamePhase.Entrance && backStack.size > 1) {
+      while (backStack.size > 1) {
+        backStack.removeLastOrNull()
+      }
+    }
+  }
 
   NavDisplay(
     backStack = backStack,
@@ -62,8 +71,17 @@ fun MainNavigation() {
             nightState = nightState,
             visitorDefinitions = ContentCatalog.visitorDefinitionsById,
             onGuestClick = { visitorId ->
-              repository.startDialogue(visitorId)
-              backStack.add(Dialogue)
+              val guest = nightState.guests.firstOrNull { it.visitorId == visitorId }
+              when (guest?.status) {
+                com.example.moonbrewtavern.domain.model.TavernGuestStatus.WaitingForOrder -> {
+                  repository.startDialogue(visitorId)
+                  backStack.add(Dialogue)
+                }
+                com.example.moonbrewtavern.domain.model.TavernGuestStatus.WantsToLeave -> {
+                  repository.collectGuestDeparture(visitorId)
+                }
+                else -> Unit
+              }
             },
             onBackToStreet = {
               repository.returnToEntrance()
@@ -97,7 +115,9 @@ fun MainNavigation() {
             scenario = scenario,
             onServe = { selectedIds ->
               repository.serveBrew(selectedIds)
-              backStack.add(Result)
+              while (backStack.lastOrNull() != TavernRoom) {
+                backStack.removeLastOrNull()
+              }
             },
             modifier = Modifier,
           )
