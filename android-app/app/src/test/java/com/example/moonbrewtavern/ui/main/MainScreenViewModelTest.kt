@@ -41,6 +41,8 @@ private class FakeMyModelRepository : DataRepository {
 
   override fun collectGuestDeparture(visitorId: String) = Unit
 
+  override fun confirmGuestDeparture() = Unit
+
   override fun startNight() = Unit
 
   override fun admitVisitor(visitorId: String) = Unit

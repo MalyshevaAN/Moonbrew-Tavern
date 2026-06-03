@@ -79,6 +79,7 @@ fun MainNavigation() {
                 }
                 com.example.moonbrewtavern.domain.model.TavernGuestStatus.WantsToLeave -> {
                   repository.collectGuestDeparture(visitorId)
+                  backStack.add(Result)
                 }
                 else -> Unit
               }
@@ -128,8 +129,8 @@ fun MainNavigation() {
             gameState = gameState,
             brewResult = brewResult ?: repository.evaluateBrew(emptySet()),
             onReturnToTavern = {
-              repository.finishNight()
-              while (backStack.size > 1) {
+              repository.confirmGuestDeparture()
+              while (backStack.lastOrNull() != TavernRoom && backStack.size > 1) {
                 backStack.removeLastOrNull()
               }
             },

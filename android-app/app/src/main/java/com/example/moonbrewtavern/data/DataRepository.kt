@@ -59,6 +59,8 @@ interface DataRepository {
 
   fun collectGuestDeparture(visitorId: String)
 
+  fun confirmGuestDeparture()
+
   fun finishNight()
 }
 
@@ -158,7 +160,7 @@ class DefaultDataRepository : DataRepository {
     _nightState.value =
       snapshot.copy(
         phase = NightPhase.Tavern,
-        pendingVisitorIds = buildArrivalPool(snapshot.queueVisitorIds),
+        pendingVisitorIds = emptyList(),
         remainingNightMs = GameLoopConfig.nightDurationMs,
         elapsedNightMs = 0L,
         nightEnded = false,
@@ -270,6 +272,23 @@ class DefaultDataRepository : DataRepository {
     val guest = _nightState.value.guests.firstOrNull { it.visitorId == visitorId } ?: return
     if (guest.status != TavernGuestStatus.WantsToLeave) return
 
+    val departureResult = guest.brewResult ?: unresolvedDepartureFor(visitorId)
+    _lastBrewResult.value = departureResult
+    _nightState.update { state ->
+      state.copy(
+        currentVisitorId = visitorId,
+        phase = NightPhase.Result,
+      )
+    }
+    _gameState.update { it.copy(phase = GamePhase.Result) }
+    rebuildScenario(visitorId)
+  }
+
+  override fun confirmGuestDeparture() {
+    val visitorId = _nightState.value.currentVisitorId ?: return
+    val guest = _nightState.value.guests.firstOrNull { it.visitorId == visitorId } ?: return
+    if (guest.status != TavernGuestStatus.WantsToLeave) return
+
     val brewResult = guest.brewResult
     val outcome = guest.servedOutcome
     val currentVisitorState = _gameState.value.visitorStates[visitorId] ?: VisitorState()
@@ -307,7 +326,13 @@ class DefaultDataRepository : DataRepository {
         phase = if (updatedGuests.isEmpty() && state.nightEnded) NightPhase.Summary else NightPhase.Tavern,
       )
     }
+    _gameState.update {
+      it.copy(
+        phase = if (_nightState.value.nightEnded && updatedGuests.isEmpty()) GamePhase.Entrance else GamePhase.Tavern,
+      )
+    }
     syncOccupiedSeats(updatedGuests.size)
+    _lastBrewResult.value = null
     rebuildScenario(nextCurrentVisitorId)
 
     if (_nightState.value.nightEnded && updatedGuests.isEmpty()) {
@@ -363,19 +388,6 @@ class DefaultDataRepository : DataRepository {
         }
       }
 
-    var pendingVisitorIds = snapshot.pendingVisitorIds
-    val canSpawnGuest =
-      remaining > 0L &&
-        elapsed % GameLoopConfig.guestArrivalIntervalMs == 0L &&
-        updatedGuests.size < _gameState.value.tavern.capacity &&
-        pendingVisitorIds.isNotEmpty()
-
-    if (canSpawnGuest) {
-      val nextVisitorId = pendingVisitorIds.first()
-      pendingVisitorIds = pendingVisitorIds.drop(1)
-      updatedGuests = updatedGuests + TavernGuest(visitorId = nextVisitorId)
-    }
-
     val didNightEnd = remaining == 0L
     if (didNightEnd) {
       updatedGuests =
@@ -394,7 +406,7 @@ class DefaultDataRepository : DataRepository {
 
     _nightState.value =
       snapshot.copy(
-        pendingVisitorIds = pendingVisitorIds,
+        pendingVisitorIds = snapshot.pendingVisitorIds,
         guests = updatedGuests,
         currentVisitorId = nextCurrentVisitorId,
         remainingNightMs = remaining,
@@ -412,13 +424,21 @@ class DefaultDataRepository : DataRepository {
     }
   }
 
-  private fun buildArrivalPool(sourceVisitorIds: List<String>): List<String> {
-    if (sourceVisitorIds.isEmpty()) return emptyList()
-    return buildList {
-      repeat(4) {
-        addAll(sourceVisitorIds)
-      }
-    }
+  private fun unresolvedDepartureFor(visitorId: String): BrewResult {
+    val visitor = ContentCatalog.visitorsById[visitorId] ?: lyraVisitor
+    return BrewResult(
+      selectedIngredients = emptyList(),
+      matchedIngredients = 0,
+      isExactMatch = false,
+      outcome =
+        ServingOutcome(
+          title = "${visitor.name} leaves unsatisfied",
+          summary = "${visitor.name} waited through the last stretch of the night, then rose from the table with an apologetic nod and no drink to remember the tavern by.",
+          reactionLine = "Perhaps another evening.",
+          goldReward = 0,
+          reputationReward = -1,
+        ),
+    )
   }
 
   private fun rebuildScenario(visitorId: String? = _nightState.value.currentVisitorId ?: lyraVisitor.id) {
