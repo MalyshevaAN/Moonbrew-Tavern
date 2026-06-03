@@ -11,7 +11,9 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
+/** Legacy view model that exposes the original scenario-driven main screen state. */
 class MainScreenViewModel(dataRepository: DataRepository) : ViewModel() {
+  /** UI state derived from the repository scenario stream. */
   val uiState: StateFlow<MainScreenUiState> =
     dataRepository.data
       .map<GameScenario, MainScreenUiState>(::Success)
@@ -19,6 +21,7 @@ class MainScreenViewModel(dataRepository: DataRepository) : ViewModel() {
       .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MainScreenUiState.Loading)
 }
 
+/** UI state for the original scenario-based main screen. */
 sealed interface MainScreenUiState {
   object Loading : MainScreenUiState
 

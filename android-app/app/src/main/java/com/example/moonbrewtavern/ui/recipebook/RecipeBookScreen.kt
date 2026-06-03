@@ -55,6 +55,7 @@ private data class RecipeNeed(
   val required: Int,
 )
 
+/** Recipe book screen used to inspect the active recipe before brewing. */
 @Composable
 fun RecipeBookScreen(
   scenario: GameScenario,

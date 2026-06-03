@@ -42,6 +42,7 @@ import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
 import com.example.moonbrewtavern.ui.common.GameStageLayout
 import com.example.moonbrewtavern.ui.common.SectionTitle
 
+/** Legacy scenario-based landing screen kept for previews and view-model tests. */
 @Composable
 fun MainScreen(
   onItemClick: (NavKey) -> Unit,

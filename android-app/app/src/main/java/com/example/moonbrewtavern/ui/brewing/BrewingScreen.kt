@@ -76,6 +76,7 @@ private data class DragState(
   val position: Offset,
 )
 
+/** Brewing minigame where the player drags ingredients, stirs, and serves the order. */
 @Composable
 fun BrewingScreen(
   scenario: GameScenario,

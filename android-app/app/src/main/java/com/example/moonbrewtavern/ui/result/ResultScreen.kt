@@ -22,6 +22,7 @@ import com.example.moonbrewtavern.ui.common.GameStageLayout
 import com.example.moonbrewtavern.ui.common.InfoLine
 import com.example.moonbrewtavern.ui.common.SectionTitle
 
+/** Result screen that summarizes the guest reaction and payout for the last brew. */
 @Composable
 fun ResultScreen(
   scenario: GameScenario,

@@ -42,6 +42,7 @@ import com.example.moonbrewtavern.domain.model.VisitorDefinition
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
 import com.example.moonbrewtavern.ui.common.resolveVisitorDefinition
 
+/** Entrance screen where the player decides who gets a seat for the current night. */
 @Composable
 fun EntranceScreen(
   gameState: GameState,

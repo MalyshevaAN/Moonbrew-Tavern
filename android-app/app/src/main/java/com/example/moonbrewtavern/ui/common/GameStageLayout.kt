@@ -31,6 +31,11 @@ import androidx.compose.ui.unit.dp
 import com.example.moonbrewtavern.domain.model.GamePhase
 import com.example.moonbrewtavern.domain.model.GameState
 
+/**
+ * Shared two-column layout for the original scenario-driven screens.
+ *
+ * It keeps the scene, status, and primary action in a consistent frame.
+ */
 @Composable
 fun GameStageLayout(
   phaseLabel: String,
@@ -175,6 +180,7 @@ private fun ProgressTrack(currentPhase: GamePhase) {
   }
 }
 
+/** Renders a compact section heading inside the detail column. */
 @Composable
 fun SectionTitle(text: String) {
   Text(
@@ -184,6 +190,7 @@ fun SectionTitle(text: String) {
   )
 }
 
+/** Displays one labeled value pair inside the shared detail layout. */
 @Composable
 fun InfoLine(label: String, value: String) {
   Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -250,6 +257,7 @@ private fun StatusTile(label: String, value: String, modifier: Modifier = Modifi
   }
 }
 
+/** Highlights a related block of text or controls inside a tinted surface. */
 @Composable
 fun AccentBlock(
   modifier: Modifier = Modifier,
@@ -269,6 +277,7 @@ fun AccentBlock(
   }
 }
 
+/** Displays a lightweight atmospheric callout for scene-setting details. */
 @Composable
 fun AmbientScenePanel(
   title: String,
@@ -313,6 +322,7 @@ fun AmbientScenePanel(
   }
 }
 
+/** Shows one ingredient row with optional selection and click handling. */
 @Composable
 fun IngredientBadge(
   name: String,
