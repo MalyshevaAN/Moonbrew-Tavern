@@ -29,6 +29,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -65,7 +66,7 @@ private data class BrewTone(
 )
 
 private data class BrewIngredientVisual(
-  @DrawableRes val iconRes: Int,
+  @param:DrawableRes val iconRes: Int,
   val count: Int,
   val label: String,
 )
@@ -85,7 +86,7 @@ fun BrewingScreen(
 ) {
   val ingredientVisuals = remember(scenario.availableIngredients) { ingredientVisualsForScenario(scenario) }
   val selectedIds = remember { mutableStateListOf<String>() }
-  var selectedToneIndex by rememberSaveable { mutableStateOf(-1) }
+  var selectedToneIndex by rememberSaveable { mutableIntStateOf(-1) }
   var dragState by remember { mutableStateOf<DragState?>(null) }
   var cauldronBounds by remember { mutableStateOf<Rect?>(null) }
   var stirrerOffset by remember { mutableStateOf(Offset.Zero) }

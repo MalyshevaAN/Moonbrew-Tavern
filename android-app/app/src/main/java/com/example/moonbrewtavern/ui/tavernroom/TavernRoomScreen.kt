@@ -252,8 +252,8 @@ private fun GuestAtTable(
   statusRes: Int,
   statusLabel: String,
   name: String,
-  drinkSecondsLeft: Int? = null,
   modifier: Modifier = Modifier,
+  drinkSecondsLeft: Int? = null,
   highlighted: Boolean = false,
   onClick: () -> Unit,
 ) {
