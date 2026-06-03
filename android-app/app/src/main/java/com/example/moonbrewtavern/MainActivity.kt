@@ -12,6 +12,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
 
+/** Hosts the Compose-based tavern demo and configures immersive full-screen mode. */
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
