@@ -38,6 +38,7 @@ import com.example.moonbrewtavern.domain.model.NightState
 import com.example.moonbrewtavern.domain.model.TavernGuestStatus
 import com.example.moonbrewtavern.domain.model.VisitorDefinition
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
+import com.example.moonbrewtavern.ui.common.rememberFloatingOffset
 import com.example.moonbrewtavern.ui.common.resolveVisitorDefinition
 import java.util.Locale
 
@@ -51,6 +52,7 @@ fun TavernRoomScreen(
   onBackToStreet: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  val bartenderFloat = rememberFloatingOffset(amplitude = 4f, durationMs = 3200)
   Box(
     modifier = modifier.fillMaxSize(),
   ) {
@@ -66,7 +68,7 @@ fun TavernRoomScreen(
     Image(
       painter = painterResource(R.drawable.tavern_room_bartender),
       contentDescription = null,
-      modifier = Modifier.align(Alignment.TopCenter).offset(x = (-128).dp, y = 56.dp).width(86.dp),
+      modifier = Modifier.align(Alignment.TopCenter).offset(x = (-128).dp, y = 56.dp + bartenderFloat.dp).width(86.dp),
       contentScale = ContentScale.FillWidth,
     )
 
@@ -151,6 +153,7 @@ private fun TavernRoomOverlay(
         statusRes = statusRes,
         statusLabel = statusLabel,
         name = definition.name,
+        ambientIndex = index,
         highlighted = isCurrent || guest.status == TavernGuestStatus.WantsToLeave,
         drinkSecondsLeft =
           if (guest.status == TavernGuestStatus.Drinking) {
@@ -171,6 +174,21 @@ private fun TavernRoomOverlay(
       ) {
         Text(
           text = "Пока пусто. На улице еще ждут путники.",
+          modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+          color = Color(0xFFF4E7C6),
+          style = MaterialTheme.typography.bodyMedium,
+        )
+      }
+    }
+
+    if (nightState.nightEnded && nightState.seatedVisitorIds.isNotEmpty()) {
+      Surface(
+        modifier = Modifier.align(Alignment.BottomCenter).offset(y = (-18).dp),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xD9281B18),
+      ) {
+        Text(
+          text = "Ночь закончилась. Собери итог у каждого гостя, кто хочет уйти.",
           modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
           color = Color(0xFFF4E7C6),
           style = MaterialTheme.typography.bodyMedium,
@@ -252,11 +270,14 @@ private fun GuestAtTable(
   statusRes: Int,
   statusLabel: String,
   name: String,
+  ambientIndex: Int,
   modifier: Modifier = Modifier,
   drinkSecondsLeft: Int? = null,
   highlighted: Boolean = false,
   onClick: () -> Unit,
 ) {
+  val guestFloat = rememberFloatingOffset(amplitude = 4f + ambientIndex, durationMs = 2400 + ambientIndex * 280)
+
   Column(
     modifier = modifier,
     horizontalAlignment = Alignment.CenterHorizontally,
@@ -301,7 +322,7 @@ private fun GuestAtTable(
       Image(
         painter = painterResource(guestRes),
         contentDescription = statusLabel,
-        modifier = Modifier.width(if (highlighted) 92.dp else 82.dp),
+        modifier = Modifier.width(if (highlighted) 92.dp else 82.dp).offset(y = guestFloat.dp),
         contentScale = ContentScale.FillWidth,
       )
     }

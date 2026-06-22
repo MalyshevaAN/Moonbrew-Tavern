@@ -7,6 +7,7 @@ data class GameState(
   val reputation: Int,
   val phase: GamePhase,
   val unlockedRecipeIds: Set<String> = emptySet(),
+  val ingredientStock: Map<String, Int> = emptyMap(),
   val visitorStates: Map<String, VisitorState> = emptyMap(),
   val tavern: TavernState = TavernState(),
 )

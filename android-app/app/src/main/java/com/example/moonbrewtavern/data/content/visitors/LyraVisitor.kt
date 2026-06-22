@@ -42,9 +42,9 @@ val lyraDefinition =
       ),
     assets =
       VisitorAssets(
-        queueRes = R.drawable.npc_beard,
-        tavernSeatRes = R.drawable.tavern_room_guest_two,
-        dialoguePortraitRes = R.drawable.dialogue_visitor_lyra,
-        resultPortraitRes = R.drawable.dialogue_visitor_lyra,
+        queueRes = R.drawable.portrait_lyra,
+        tavernSeatRes = R.drawable.portrait_lyra,
+        dialoguePortraitRes = R.drawable.portrait_lyra,
+        resultPortraitRes = R.drawable.portrait_lyra,
       ),
   )

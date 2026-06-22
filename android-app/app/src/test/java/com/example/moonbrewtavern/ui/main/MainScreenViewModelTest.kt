@@ -35,9 +35,9 @@ private class FakeMyModelRepository : DataRepository {
   override val nightState: StateFlow<NightState> = MutableStateFlow(backingRepository.nightState.value)
   override val lastBrewResult: StateFlow<BrewResult?> = MutableStateFlow(null)
 
-  override fun evaluateBrew(selectedIngredientIds: Set<String>): BrewResult = DefaultDataRepository().evaluateBrew(selectedIngredientIds)
+  override fun evaluateBrew(selectedIngredientIds: List<String>): BrewResult = DefaultDataRepository().evaluateBrew(selectedIngredientIds)
 
-  override fun serveBrew(selectedIngredientIds: Set<String>): BrewResult = evaluateBrew(selectedIngredientIds)
+  override fun serveBrew(selectedIngredientIds: List<String>): BrewResult = evaluateBrew(selectedIngredientIds)
 
   override fun collectGuestDeparture(visitorId: String) = Unit
 
@@ -58,6 +58,9 @@ private class FakeMyModelRepository : DataRepository {
   override fun openRecipeBook() = Unit
 
   override fun openBrewing() = Unit
+  override fun selectRecipe(recipeId: String) = Unit
+  override fun purchaseRecipe(recipeId: String, price: Int): Boolean = false
+  override fun purchaseIngredient(ingredientId: String, quantity: Int, unitPrice: Int): Boolean = false
 
   override fun finishNight() = Unit
 }

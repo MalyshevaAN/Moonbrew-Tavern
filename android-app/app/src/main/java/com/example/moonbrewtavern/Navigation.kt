@@ -111,6 +111,14 @@ fun MainNavigation() {
         entry<RecipeBook> {
           RecipeBookScreen(
             scenario = scenario,
+            gameState = gameState,
+            onBack = {
+              repository.startDialogue(scenario.visitor.id)
+              backStack.removeLastOrNull()
+            },
+            onSelectRecipe = repository::selectRecipe,
+            onPurchaseRecipe = repository::purchaseRecipe,
+            onPurchaseIngredient = repository::purchaseIngredient,
             onStartBrewing = {
               repository.openBrewing()
               backStack.add(Brewing)
@@ -121,6 +129,10 @@ fun MainNavigation() {
         entry<Brewing> {
           BrewingScreen(
             scenario = scenario,
+            onBack = {
+              repository.openRecipeBook()
+              backStack.removeLastOrNull()
+            },
             onServe = { selectedIds ->
               repository.serveBrew(selectedIds)
               while (backStack.lastOrNull() != TavernRoom) {
@@ -134,7 +146,7 @@ fun MainNavigation() {
           ResultScreen(
             scenario = scenario,
             gameState = gameState,
-            brewResult = brewResult ?: repository.evaluateBrew(emptySet()),
+            brewResult = brewResult ?: repository.evaluateBrew(emptyList()),
             onReturnToTavern = {
               repository.confirmGuestDeparture()
               while (backStack.lastOrNull() != TavernRoom && backStack.size > 1) {

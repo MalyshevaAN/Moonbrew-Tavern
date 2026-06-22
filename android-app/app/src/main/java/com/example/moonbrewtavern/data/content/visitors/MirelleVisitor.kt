@@ -40,9 +40,9 @@ val mirelleDefinition =
       ),
     assets =
       VisitorAssets(
-        queueRes = R.drawable.npc_witch,
-        tavernSeatRes = R.drawable.tavern_room_guest_three,
-        dialoguePortraitRes = R.drawable.npc_witch,
-        resultPortraitRes = R.drawable.npc_witch,
+        queueRes = R.drawable.portrait_mirelle,
+        tavernSeatRes = R.drawable.portrait_mirelle,
+        dialoguePortraitRes = R.drawable.portrait_mirelle,
+        resultPortraitRes = R.drawable.portrait_mirelle,
       ),
   )

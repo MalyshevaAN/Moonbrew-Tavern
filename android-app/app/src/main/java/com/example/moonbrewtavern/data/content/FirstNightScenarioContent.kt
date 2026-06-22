@@ -7,21 +7,22 @@ import com.example.moonbrewtavern.domain.model.GamePhase
 import com.example.moonbrewtavern.domain.model.GameScenario
 import com.example.moonbrewtavern.domain.model.GameState
 import com.example.moonbrewtavern.domain.model.ServingOutcome
+import com.example.moonbrewtavern.domain.model.Recipe
 import com.example.moonbrewtavern.domain.model.Tavern
 import com.example.moonbrewtavern.domain.model.Visitor
 
 /** Default successful outcome for the first-night visitor flow. */
 val firstNightOutcome =
   ServingOutcome(
-    title = "A promising first regular",
-    summary = "Lyra lingers after the last sip, sketches a star-map on a napkin, and asks if she can return tomorrow.",
-    reactionLine = "That is exactly what I needed. Quiet first, then courage.",
+    title = "Новый постоянный гость",
+    summary = "Lyra Vale задерживается после последнего глотка и спрашивает, можно ли вернуться завтра.",
+    reactionLine = "Именно то, что мне было нужно. Сначала покой, а затем смелость.",
     goldReward = 7,
     reputationReward = 2,
   )
 
 /** Flavor hint shown during brewing for the current starter recipe. */
-const val firstNightBrewingHint = "Keep the drink clean and bright. The warmth should arrive late, not overwhelm the first sip."
+const val firstNightBrewingHint = "Сохрани вкус чистым и ярким. Тепло должно появиться в послевкусии, а не перебить первый глоток."
 
 /** Narrative metadata for the tavern at the start of the demo. */
 val firstNightTavern =
@@ -35,16 +36,34 @@ val firstNightTavern =
 fun scenarioForVisitor(
   visitor: Visitor,
   initialState: GameState = GameState(day = 3, gold = 12, reputation = 4, phase = GamePhase.Entrance),
-): GameScenario =
-  GameScenario(
+  recipe: Recipe = starglowTonicRecipe,
+): GameScenario {
+  val stockedIngredients =
+    firstNightIngredients.map { ingredient ->
+      ingredient.copy(stockCount = initialState.ingredientStock[ingredient.id] ?: ingredient.stockCount)
+    }
+  val stockedById = stockedIngredients.associateBy { it.id }
+  val stockedRecipe =
+    recipe.copy(
+      requiredIngredients =
+        recipe.requiredIngredients.map { ingredient ->
+          stockedById[ingredient.id] ?: ingredient
+        },
+    )
+
+  return GameScenario(
     tavern = firstNightTavern,
     initialState = initialState,
     visitor = visitor,
-    recipe = starglowTonicRecipe,
-    availableIngredients = firstNightIngredients,
+    recipe = stockedRecipe,
+    availableIngredients = stockedIngredients,
     brewingHint = firstNightBrewingHint,
-    outcome = firstNightOutcome,
+    outcome =
+      firstNightOutcome.copy(
+        summary = "${visitor.name} задерживается после последнего глотка и спрашивает, можно ли вернуться завтра.",
+      ),
   )
+}
 
 /** Default scenario preview used by tests, previews, and the original single-guest flow. */
 val firstNightScenario = scenarioForVisitor(lyraVisitor)

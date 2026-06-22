@@ -2,6 +2,9 @@ package com.example.moonbrewtavern.data.content
 
 import com.example.moonbrewtavern.data.content.ingredients.firstNightIngredients
 import com.example.moonbrewtavern.data.content.recipes.starglowTonicRecipe
+import com.example.moonbrewtavern.data.content.recipes.gingerGrogRecipe
+import com.example.moonbrewtavern.data.content.recipes.herbalMixRecipe
+import com.example.moonbrewtavern.data.content.recipes.moonAleRecipe
 import com.example.moonbrewtavern.data.content.visitors.brannDefinition
 import com.example.moonbrewtavern.data.content.visitors.brannVisitor
 import com.example.moonbrewtavern.data.content.visitors.corinDefinition
@@ -17,7 +20,7 @@ import com.example.moonbrewtavern.domain.model.VisitorDefinition
 object ContentCatalog {
   val visitors: List<Visitor> = listOf(brannVisitor, mirelleVisitor, lyraVisitor, corinVisitor)
   val visitorDefinitions: List<VisitorDefinition> = listOf(brannDefinition, mirelleDefinition, lyraDefinition, corinDefinition)
-  val recipes = listOf(starglowTonicRecipe)
+  val recipes = listOf(starglowTonicRecipe, herbalMixRecipe, gingerGrogRecipe, moonAleRecipe)
   val ingredients = firstNightIngredients
   val starterQueueVisitorIds = listOf(brannVisitor.id, mirelleVisitor.id, lyraVisitor.id, corinVisitor.id)
 
@@ -45,6 +48,7 @@ object ContentCatalog {
 
   val visitorsById = visitors.associateBy(Visitor::id)
   val visitorDefinitionsById = visitorDefinitions.associateBy(VisitorDefinition::id)
+  val recipesById = recipes.associateBy { it.id }
 
   /** Fails fast when content ids that should be unique collide inside a catalog list. */
   private fun requireUniqueIds(label: String, ids: List<String>) {

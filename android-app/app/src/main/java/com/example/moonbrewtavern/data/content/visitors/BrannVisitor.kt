@@ -39,9 +39,9 @@ val brannDefinition =
       ),
     assets =
       VisitorAssets(
-        queueRes = R.drawable.npc_hood,
-        tavernSeatRes = R.drawable.tavern_room_guest_one,
-        dialoguePortraitRes = R.drawable.npc_hood,
-        resultPortraitRes = R.drawable.npc_hood,
+        queueRes = R.drawable.portrait_brann,
+        tavernSeatRes = R.drawable.portrait_brann,
+        dialoguePortraitRes = R.drawable.portrait_brann,
+        resultPortraitRes = R.drawable.portrait_brann,
       ),
   )

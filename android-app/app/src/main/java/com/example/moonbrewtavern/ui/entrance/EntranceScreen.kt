@@ -40,6 +40,7 @@ import com.example.moonbrewtavern.domain.model.GameState
 import com.example.moonbrewtavern.domain.model.NightState
 import com.example.moonbrewtavern.domain.model.VisitorDefinition
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
+import com.example.moonbrewtavern.ui.common.rememberFloatingOffset
 import com.example.moonbrewtavern.ui.common.resolveVisitorDefinition
 
 /** Entrance screen where the player decides who gets a seat for the current night. */
@@ -54,6 +55,7 @@ fun EntranceScreen(
   modifier: Modifier = Modifier,
 ) {
   val freeSeats = (gameState.tavern.capacity - nightState.seatedVisitorIds.size).coerceAtLeast(0)
+  val signFloat = rememberFloatingOffset(amplitude = 5f, durationMs = 3600)
 
   // Root scene container for the exterior tavern view.
   Box(
@@ -97,7 +99,7 @@ fun EntranceScreen(
         Image(
           painter = painterResource(R.drawable.ui_sign),
           contentDescription = null,
-          modifier = Modifier.width(260.dp),
+          modifier = Modifier.width(260.dp).offset(y = signFloat.dp),
           contentScale = ContentScale.FillWidth,
         )
 
@@ -170,6 +172,7 @@ fun EntranceScreen(
                 admitEnabled = freeSeats > 0,
                 onAdmit = { onAdmit(visitorId) },
                 onReject = { onReject(visitorId) },
+                ambientIndex = nightState.queueVisitorIds.indexOf(visitorId),
               )
             }
           }
@@ -202,8 +205,8 @@ fun EntranceScreen(
             }
           }
         }
-        }
       }
+    }
   }
 }
 
@@ -213,7 +216,10 @@ private fun QueueCard(
   admitEnabled: Boolean,
   onAdmit: () -> Unit,
   onReject: () -> Unit,
+  ambientIndex: Int,
 ) {
+  val portraitFloat = rememberFloatingOffset(amplitude = 4f + ambientIndex, durationMs = 2200 + ambientIndex * 220)
+
   // Single visitor card shown in the entrance queue.
   Surface(
     modifier = Modifier.width(216.dp),
@@ -238,8 +244,8 @@ private fun QueueCard(
         Image(
           painter = painterResource(definition.assets.queueRes),
           contentDescription = definition.name,
-          modifier = Modifier.height(152.dp),
-          contentScale = ContentScale.FillHeight,
+          modifier = Modifier.height(168.dp).fillMaxWidth().offset(y = portraitFloat.dp),
+          contentScale = ContentScale.Fit,
         )
       }
 

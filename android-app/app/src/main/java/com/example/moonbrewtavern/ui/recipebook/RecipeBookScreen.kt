@@ -1,5 +1,7 @@
 package com.example.moonbrewtavern.ui.recipebook
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -33,11 +34,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.moonbrewtavern.R
 import com.example.moonbrewtavern.data.DefaultDataRepository
+import com.example.moonbrewtavern.data.content.ContentCatalog
 import com.example.moonbrewtavern.domain.model.GameScenario
+import com.example.moonbrewtavern.domain.model.GameState
+import com.example.moonbrewtavern.domain.model.Recipe
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
 
 private data class RecipeBookEntry(
@@ -46,83 +53,61 @@ private data class RecipeBookEntry(
   val description: String,
   val effects: List<String>,
   val ingredients: List<RecipeNeed>,
+  @param:DrawableRes val illustrationRes: Int,
   val locked: Boolean = false,
+  val price: Int = 0,
 )
 
 private data class RecipeNeed(
   val name: String,
   val available: Int,
   val required: Int,
+  @param:DrawableRes val iconRes: Int,
+)
+
+private data class IngredientShopEntry(
+  val id: String,
+  val name: String,
+  val stock: Int,
+  val unitPrice: Int,
+  @param:DrawableRes val iconRes: Int,
 )
 
 /** Recipe book screen used to inspect the active recipe before brewing. */
 @Composable
 fun RecipeBookScreen(
   scenario: GameScenario,
+  gameState: GameState,
+  onBack: () -> Unit,
+  onSelectRecipe: (String) -> Unit,
+  onPurchaseRecipe: (String, Int) -> Boolean,
+  onPurchaseIngredient: (String, Int, Int) -> Boolean,
   onStartBrewing: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val recipes =
-    remember(scenario.recipe.id) {
-      listOf(
-        RecipeBookEntry(
-          id = scenario.recipe.id,
-          title = "Звездный тоник",
-          description = "Легкий напиток для тех, кому нужно сохранить ясную голову и мягко вернуть себе внутреннее равновесие.",
-          effects = listOf("+ Спокойствие +10", "+ Фокус +5"),
-          ingredients =
-            scenario.recipe.requiredIngredients.map { ingredient ->
-              RecipeNeed(
-                name = ingredient.name,
-                available = ingredient.stockCount,
-                required = 1,
-              )
-            },
-        ),
-        RecipeBookEntry(
-          id = "herbal-mix",
-          title = "Травяной сбор",
-          description = "Нежный вечерний настой с сухими травами и успокаивающим послевкусием.",
-          effects = listOf("+ Уют +8", "+ Доверие +3"),
-          ingredients = listOf(
-            RecipeNeed("Frost Thyme", 2, 1),
-            RecipeNeed("Moonmint", 6, 1),
-            RecipeNeed("Dusk Syrup", 4, 1),
-          ),
-        ),
-        RecipeBookEntry(
-          id = "ginger-grog",
-          title = "Имбирный грог",
-          description = "Плотный согревающий напиток для холодной дороги и тяжелых разговоров.",
-          effects = listOf("+ Тепло +12", "+ Смелость +4"),
-          ingredients = listOf(
-            RecipeNeed("Ember Zest", 5, 1),
-            RecipeNeed("Cinderbloom", 1, 1),
-            RecipeNeed("Dusk Syrup", 4, 1),
-          ),
-        ),
-        RecipeBookEntry(
-          id = "moon-ale",
-          title = "Лунный эль",
-          description = "Редкий пенящийся напиток с холодным сиянием и чуть сладковатой дымкой.",
-          effects = listOf("+ Магия +7", "+ Настроение +6"),
-          ingredients = listOf(
-            RecipeNeed("Silverfoam", 3, 1),
-            RecipeNeed("Moonmint", 6, 1),
-            RecipeNeed("Ember Zest", 5, 1),
-          ),
-        ),
-        RecipeBookEntry(
-          id = "locked",
-          title = "???",
-          description = "Этот рецепт пока спрятан в следующих главах книги.",
-          effects = emptyList(),
-          ingredients = emptyList(),
-          locked = true,
-        ),
-      )
+    remember(gameState.unlockedRecipeIds, gameState.ingredientStock) {
+      ContentCatalog.recipes.map { recipe ->
+        recipe.toBookEntry(
+          locked = recipe.id !in gameState.unlockedRecipeIds,
+          price = recipePrice(recipe.id),
+          stock = gameState.ingredientStock,
+        )
+      }
     }
-  var selectedRecipeId by remember { mutableStateOf(recipes.first().id) }
+  val shopEntries =
+    remember(gameState.ingredientStock) {
+      ContentCatalog.ingredients.map { ingredient ->
+        IngredientShopEntry(
+          id = ingredient.id,
+          name = ingredient.name,
+          stock = gameState.ingredientStock[ingredient.id] ?: 0,
+          unitPrice = ingredientPrice(ingredient.id),
+          iconRes = ingredientIconRes(ingredient.id),
+        )
+      }
+    }
+  var selectedRecipeId by remember(scenario.recipe.id) { mutableStateOf(scenario.recipe.id) }
   val selectedRecipe = recipes.first { it.id == selectedRecipeId }
 
   // Full-screen recipe book surface with a dark reading-room palette.
@@ -141,26 +126,105 @@ fun RecipeBookScreen(
         )
         .padding(18.dp),
   ) {
-    // Split layout with the recipe list on the left and details on the right.
-    Row(
+    Column(
       modifier = Modifier.fillMaxSize(),
-      horizontalArrangement = Arrangement.spacedBy(18.dp),
+      verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-      RecipeListPanel(
-        recipes = recipes,
-        selectedRecipeId = selectedRecipeId,
-        onSelect = { recipe ->
-          if (!recipe.locked) {
-            selectedRecipeId = recipe.id
-          }
-        },
-        modifier = Modifier.width(280.dp).fillMaxHeight(),
+      RecipeBookHeader(
+        visitorName = scenario.visitor.name,
+        requestLine = scenario.visitor.requestLine,
+        gold = gameState.gold,
+        onBack = onBack,
       )
 
-      RecipeDetailPanel(
-        recipe = selectedRecipe,
-        onStartBrewing = onStartBrewing,
-        modifier = Modifier.weight(1f).fillMaxHeight(),
+      Row(
+        modifier = Modifier.fillMaxWidth().weight(1f),
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
+      ) {
+        RecipeListPanel(
+          recipes = recipes,
+          unlockedCount = gameState.unlockedRecipeIds.size,
+          shopEntries = shopEntries,
+          gold = gameState.gold,
+          selectedRecipeId = selectedRecipeId,
+          onSelect = { recipe ->
+            selectedRecipeId = recipe.id
+            if (!recipe.locked) onSelectRecipe(recipe.id)
+          },
+          onPurchaseIngredient = onPurchaseIngredient,
+          modifier = Modifier.width(280.dp).fillMaxHeight(),
+        )
+
+        RecipeDetailPanel(
+          recipe = selectedRecipe,
+          quickRecipes = recipes.filterNot { it.locked },
+          gold = gameState.gold,
+          onSelectRecipe = {
+            selectedRecipeId = it.id
+            onSelectRecipe(it.id)
+          },
+          onPurchaseRecipe = {
+            if (onPurchaseRecipe(it.id, it.price)) {
+              selectedRecipeId = it.id
+              onSelectRecipe(it.id)
+            }
+          },
+          onStartBrewing = onStartBrewing,
+          modifier = Modifier.weight(1f).fillMaxHeight(),
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun RecipeBookHeader(
+  visitorName: String,
+  requestLine: String,
+  gold: Int,
+  onBack: () -> Unit,
+) {
+  Surface(
+    modifier = Modifier.fillMaxWidth(),
+    shape = RoundedCornerShape(18.dp),
+    color = Color(0xE62A201D),
+    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF513B32)),
+  ) {
+    Row(
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+      horizontalArrangement = Arrangement.spacedBy(16.dp),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Surface(
+        modifier = Modifier.clickable(onClick = onBack),
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFF4A352C),
+      ) {
+        Text(
+          text = "← Назад",
+          modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+          color = Color(0xFFF0D39D),
+          fontWeight = FontWeight.Bold,
+        )
+      }
+      Text(
+        text = "Книга рецептов",
+        color = Color(0xFFF3E3CF),
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold,
+      )
+      Text(
+        text = "$visitorName: $requestLine",
+        modifier = Modifier.weight(1f),
+        color = Color(0xFFD7BFA5),
+        style = MaterialTheme.typography.bodySmall,
+        maxLines = 2,
+      )
+      Text(
+        text = "Золото: $gold",
+        color = Color(0xFFF0C88C),
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
       )
     }
   }
@@ -169,8 +233,12 @@ fun RecipeBookScreen(
 @Composable
 private fun RecipeListPanel(
   recipes: List<RecipeBookEntry>,
+  unlockedCount: Int,
+  shopEntries: List<IngredientShopEntry>,
+  gold: Int,
   selectedRecipeId: String,
   onSelect: (RecipeBookEntry) -> Unit,
+  onPurchaseIngredient: (String, Int, Int) -> Boolean,
   modifier: Modifier = Modifier,
 ) {
   // Left navigation panel that lists available and locked recipes.
@@ -208,7 +276,7 @@ private fun RecipeListPanel(
             fontWeight = FontWeight.Bold,
           )
           Text(
-            text = "4/5 доступны",
+            text = "$unlockedCount/${recipes.size} доступны",
             style = MaterialTheme.typography.bodyMedium,
             color = Color(0xFFCDB49A),
           )
@@ -235,7 +303,7 @@ private fun RecipeListPanel(
             Modifier
               .fillMaxWidth()
               .clip(RoundedCornerShape(18.dp))
-              .clickable(enabled = !recipe.locked) { onSelect(recipe) }
+              .clickable { onSelect(recipe) }
               .border(1.dp, borderColor, RoundedCornerShape(18.dp)),
           shape = RoundedCornerShape(18.dp),
           color = container,
@@ -254,7 +322,7 @@ private fun RecipeListPanel(
               contentAlignment = Alignment.Center,
             ) {
               Text(
-                text = if (recipe.locked) "?" else recipe.title.take(1),
+                text = if (recipe.locked) "◈" else recipe.title.take(1),
                 style = MaterialTheme.typography.titleMedium,
                 color = Color(0xFFF8EBD8),
                 fontWeight = FontWeight.Bold,
@@ -272,13 +340,34 @@ private fun RecipeListPanel(
                 fontWeight = FontWeight.SemiBold,
               )
               Text(
-                text = if (recipe.locked) "Рецепт закрыт" else "Открыть описание",
+                text = if (recipe.locked) "Купить за ${recipe.price} золота" else "Открыть описание",
                 style = MaterialTheme.typography.bodySmall,
                 color = if (recipe.locked) Color(0xFF6C5B50) else Color(0xFFCDB49A),
               )
             }
           }
         }
+      }
+
+      Text(
+        text = "Лавка ингредиентов",
+        style = MaterialTheme.typography.titleMedium,
+        color = Color(0xFFF0C88C),
+        fontWeight = FontWeight.Bold,
+      )
+      Text(
+        text = "Покупка по 1 единице",
+        style = MaterialTheme.typography.bodySmall,
+        color = Color(0xFFCDB49A),
+      )
+      shopEntries.forEach { ingredient ->
+        IngredientShopRow(
+          ingredient = ingredient,
+          canAfford = gold >= ingredient.unitPrice,
+          onPurchase = {
+            onPurchaseIngredient(ingredient.id, 1, ingredient.unitPrice)
+          },
+        )
       }
     }
   }
@@ -287,9 +376,15 @@ private fun RecipeListPanel(
 @Composable
 private fun RecipeDetailPanel(
   recipe: RecipeBookEntry,
+  quickRecipes: List<RecipeBookEntry>,
+  gold: Int,
+  onSelectRecipe: (RecipeBookEntry) -> Unit,
+  onPurchaseRecipe: (RecipeBookEntry) -> Unit,
   onStartBrewing: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  val hasEnoughIngredients = recipe.ingredients.all { it.available >= it.required }
+
   // Right detail panel for the currently selected recipe.
   Surface(
     modifier = modifier,
@@ -308,16 +403,20 @@ private fun RecipeDetailPanel(
         verticalAlignment = Alignment.CenterVertically,
       ) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-          TopTab("Кружка", active = true)
-          TopTab("Травы")
-          TopTab("Избранное")
+          quickRecipes.forEach { quickRecipe ->
+            TopTab(
+              label = quickRecipe.title.substringBefore(" "),
+              active = quickRecipe.id == recipe.id,
+              onClick = { onSelectRecipe(quickRecipe) },
+            )
+          }
         }
         Surface(
           shape = RoundedCornerShape(14.dp),
           color = Color(0xFF2B211E),
         ) {
           Text(
-            text = "Книга рецептов",
+            text = "Быстрый выбор",
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             color = Color(0xFFF3E3CF),
             style = MaterialTheme.typography.labelLarge,
@@ -358,11 +457,11 @@ private fun RecipeDetailPanel(
                   .background(Color(0xFF312623)),
                   contentAlignment = Alignment.Center,
             ) {
-              Text(
-                text = "Иллюстрация\nрецепта",
-                color = Color(0xFFCDB49A),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+              Image(
+                painter = painterResource(recipe.illustrationRes),
+                contentDescription = recipe.title,
+                modifier = Modifier.fillMaxSize().padding(8.dp),
+                contentScale = ContentScale.Fit,
               )
             }
 
@@ -425,10 +524,9 @@ private fun RecipeDetailPanel(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-              recipe.ingredients.forEachIndexed { index, ingredient ->
+              recipe.ingredients.forEach { ingredient ->
                 RecipeIngredientCard(
                   ingredient = ingredient,
-                  isLast = index == recipe.ingredients.lastIndex,
                   modifier = Modifier.weight(1f),
                 )
               }
@@ -440,12 +538,26 @@ private fun RecipeDetailPanel(
       }
 
       Button(
-        onClick = onStartBrewing,
-        enabled = !recipe.locked,
+        onClick = {
+          if (recipe.locked) onPurchaseRecipe(recipe) else onStartBrewing()
+        },
+        enabled =
+          if (recipe.locked) {
+            gold >= recipe.price
+          } else {
+            hasEnoughIngredients
+          },
         modifier = Modifier.width(160.dp).height(38.dp).align(Alignment.CenterHorizontally),
       ) {
         Text(
-          text = "Готовить",
+          text =
+            if (recipe.locked) {
+              if (gold >= recipe.price) "Купить • ${recipe.price}" else "Нужно ${recipe.price}"
+            } else if (!hasEnoughIngredients) {
+              "Не хватает трав"
+            } else {
+              "Готовить"
+            },
           style = MaterialTheme.typography.titleSmall,
           fontWeight = FontWeight.SemiBold,
         )
@@ -458,8 +570,10 @@ private fun RecipeDetailPanel(
 private fun TopTab(
   label: String,
   active: Boolean = false,
+  onClick: () -> Unit,
 ) {
   Surface(
+    modifier = Modifier.clickable(onClick = onClick),
     shape = RoundedCornerShape(16.dp),
     color = if (active) Color(0xFF5A3F31) else Color(0xFF2A201D),
     border = androidx.compose.foundation.BorderStroke(1.dp, if (active) Color(0xFFD2A56E) else Color(0xFF44332D)),
@@ -477,55 +591,145 @@ private fun TopTab(
 @Composable
 private fun RecipeIngredientCard(
   ingredient: RecipeNeed,
-  isLast: Boolean,
   modifier: Modifier = Modifier,
 ) {
-  Column(
+  Surface(
     modifier = modifier,
-    horizontalAlignment = Alignment.CenterHorizontally,
-    verticalArrangement = Arrangement.spacedBy(8.dp),
+    shape = RoundedCornerShape(18.dp),
+    color = Color(0xFF2D221F),
   ) {
-    Surface(
-      modifier = Modifier.fillMaxWidth(),
-      shape = RoundedCornerShape(18.dp),
-      color = Color(0xFF2D221F),
+    Column(
+      modifier = Modifier.fillMaxWidth().padding(14.dp),
+      horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-      Column(
-        modifier = Modifier.fillMaxWidth().padding(14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-      ) {
-        Box(
-          modifier =
-            Modifier
-              .size(38.dp)
-              .clip(CircleShape)
-              .background(Color(0xFF7A5A43)),
-        )
-        Text(
-          text = ingredient.name,
-          style = MaterialTheme.typography.titleSmall,
-          color = Color(0xFFF3E3CF),
-          fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-          text = "${ingredient.available}/${ingredient.required}",
-          style = MaterialTheme.typography.headlineSmall,
-          color = if (ingredient.available >= ingredient.required) Color(0xFFF0D28F) else Color(0xFFD98B8B),
-          fontWeight = FontWeight.Bold,
-        )
-      }
-    }
-    if (!isLast) {
+      Image(
+        painter = painterResource(ingredient.iconRes),
+        contentDescription = ingredient.name,
+        modifier = Modifier.size(48.dp),
+        contentScale = ContentScale.Fit,
+      )
       Text(
-        text = "->",
-        style = MaterialTheme.typography.titleLarge,
-        color = Color(0xFF8D6B54),
+        text = ingredient.name,
+        style = MaterialTheme.typography.titleSmall,
+        color = Color(0xFFF3E3CF),
+        fontWeight = FontWeight.SemiBold,
+      )
+      Text(
+        text = "${ingredient.available}/${ingredient.required}",
+        style = MaterialTheme.typography.headlineSmall,
+        color = if (ingredient.available >= ingredient.required) Color(0xFFF0D28F) else Color(0xFFD98B8B),
         fontWeight = FontWeight.Bold,
       )
     }
   }
 }
+
+@Composable
+private fun IngredientShopRow(
+  ingredient: IngredientShopEntry,
+  canAfford: Boolean,
+  onPurchase: () -> Unit,
+) {
+  Surface(
+    modifier = Modifier.fillMaxWidth(),
+    shape = RoundedCornerShape(16.dp),
+    color = Color(0xFF2A201D),
+    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF43312B)),
+  ) {
+    Row(
+      modifier = Modifier.fillMaxWidth().padding(10.dp),
+      horizontalArrangement = Arrangement.spacedBy(10.dp),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Image(
+        painter = painterResource(ingredient.iconRes),
+        contentDescription = ingredient.name,
+        modifier = Modifier.size(36.dp),
+        contentScale = ContentScale.Fit,
+      )
+      Column(modifier = Modifier.weight(1f)) {
+        Text(
+          text = ingredient.name,
+          color = Color(0xFFF3E3CF),
+          style = MaterialTheme.typography.labelLarge,
+          fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+          text = "В запасе: ${ingredient.stock}",
+          color = Color(0xFFCDB49A),
+          style = MaterialTheme.typography.labelSmall,
+        )
+      }
+      Button(
+        onClick = onPurchase,
+        enabled = canAfford,
+        modifier = Modifier.height(36.dp),
+      ) {
+        Text("+1 • ${ingredient.unitPrice}")
+      }
+    }
+  }
+}
+
+@DrawableRes
+private fun ingredientIconRes(id: String): Int =
+  when (id) {
+    "silverfoam" -> R.drawable.brew_item_crystal
+    "moonmint" -> R.drawable.brew_item_leaf_bundle
+    "emberzest" -> R.drawable.brew_item_ginger_root
+    "dusk-syrup" -> R.drawable.brew_item_honey_bottle
+    "frost-thyme" -> R.drawable.brew_item_violet_flower
+    "cinderbloom" -> R.drawable.brew_item_mushroom
+    else -> R.drawable.brew_item_blackberry
+  }
+
+private fun Recipe.toBookEntry(
+  locked: Boolean,
+  price: Int,
+  stock: Map<String, Int>,
+): RecipeBookEntry =
+  RecipeBookEntry(
+    id = id,
+    title = name,
+    description = description,
+    effects =
+      when (id) {
+        "starglow-tonic" -> listOf("+ Спокойствие +10", "+ Фокус +5")
+        "herbal-mix" -> listOf("+ Уют +8", "+ Доверие +3")
+        "ginger-grog" -> listOf("+ Тепло +12", "+ Смелость +4")
+        else -> listOf("+ Магия +7", "+ Настроение +6")
+      },
+    ingredients =
+      requiredIngredients.map {
+        RecipeNeed(it.name, stock[it.id] ?: 0, 1, ingredientIconRes(it.id))
+      },
+    illustrationRes =
+      when (id) {
+        "herbal-mix" -> R.drawable.recipe_herbal_mix
+        "ginger-grog" -> R.drawable.recipe_ginger_grog
+        "moon-ale" -> R.drawable.recipe_moon_ale
+        else -> R.drawable.recipe_starglow_tonic
+      },
+    locked = locked,
+    price = price,
+  )
+
+private fun recipePrice(id: String): Int =
+  when (id) {
+    "herbal-mix" -> 10
+    "ginger-grog" -> 14
+    "moon-ale" -> 18
+    else -> 0
+  }
+
+private fun ingredientPrice(id: String): Int =
+  when (id) {
+    "moonmint", "dusk-syrup" -> 2
+    "emberzest", "frost-thyme" -> 3
+    "silverfoam", "cinderbloom" -> 4
+    else -> 2
+  }
 
 @Preview(showBackground = true, widthDp = 960, heightDp = 540)
 @Composable
@@ -533,6 +737,11 @@ private fun RecipeBookScreenPreview() {
   MoonbrewTavernTheme {
     RecipeBookScreen(
       scenario = DefaultDataRepository().scenario,
+      gameState = DefaultDataRepository().gameState.value,
+      onBack = {},
+      onSelectRecipe = {},
+      onPurchaseRecipe = { _, _ -> false },
+      onPurchaseIngredient = { _, _, _ -> false },
       onStartBrewing = {},
     )
   }

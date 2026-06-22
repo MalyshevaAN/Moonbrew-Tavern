@@ -8,7 +8,7 @@ import com.example.moonbrewtavern.domain.model.Recipe
 val starglowTonicRecipe =
   Recipe(
     id = "starglow-tonic",
-    name = "Starglow Tonic",
-    description = "A focused tonic for travelers who need calm nerves and a bright mind.",
+    name = "Звездный тоник",
+    description = "Легкий напиток для тех, кому нужно сохранить ясную голову и внутреннее равновесие.",
     requiredIngredients = listOf(moonmint, emberzest, silverfoam),
   )

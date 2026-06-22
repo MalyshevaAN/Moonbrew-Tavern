@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -21,8 +22,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -57,6 +60,7 @@ import com.example.moonbrewtavern.data.DefaultDataRepository
 import com.example.moonbrewtavern.domain.model.GameScenario
 import com.example.moonbrewtavern.domain.model.Ingredient
 import com.example.moonbrewtavern.theme.MoonbrewTavernTheme
+import com.example.moonbrewtavern.ui.common.rememberFloatingOffset
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -72,7 +76,6 @@ private data class BrewIngredientVisual(
 )
 
 private data class DragState(
-  val ingredient: Ingredient,
   val visual: BrewIngredientVisual,
   val position: Offset,
 )
@@ -81,7 +84,8 @@ private data class DragState(
 @Composable
 fun BrewingScreen(
   scenario: GameScenario,
-  onServe: (Set<String>) -> Unit,
+  onBack: () -> Unit,
+  onServe: (List<String>) -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val ingredientVisuals = remember(scenario.availableIngredients) { ingredientVisualsForScenario(scenario) }
@@ -102,13 +106,26 @@ fun BrewingScreen(
       BrewTone("Лиловый", Color(0xFF6E6FD4)),
     )
   val selectedTone = tones.getOrNull(selectedToneIndex)
-  val selectedIngredients = scenario.availableIngredients.filter { it.id in selectedIds }
+  val selectedIngredients = selectedIds.mapNotNull { selectedId -> scenario.availableIngredients.firstOrNull { it.id == selectedId } }
+  val selectedCounts = selectedIds.groupingBy { it }.eachCount()
   val canAddMore = selectedIds.size < 3
   val stirElapsedMs = currentStirElapsedMs(stirBaseMs, stirDragStartMs)
   val stirProgress = (stirElapsedMs / 2000f).coerceIn(0f, 1f)
   val isStirred = stirElapsedMs >= 2000L
   val canStir = selectedIngredients.isNotEmpty()
   val canServe = selectedIds.size == 3 && isStirred && selectedTone != null
+  val cauldronFloat = rememberFloatingOffset(amplitude = 5f, durationMs = 2800)
+  val bubbleFloat = rememberFloatingOffset(amplitude = 8f, durationMs = 1900)
+
+  fun resetBrewProgress(keepIngredients: Boolean = true) {
+    if (!keepIngredients) {
+      selectedIds.clear()
+    }
+    selectedToneIndex = -1
+    stirrerOffset = Offset.Zero
+    stirBaseMs = 0L
+    stirDragStartMs = null
+  }
 
   // Root brewing scene that layers the background, controls, and drag overlay.
   Box(modifier = modifier.fillMaxSize()) {
@@ -125,7 +142,7 @@ fun BrewingScreen(
       modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp),
       verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-      BrewingTopBar()
+      BrewingTopBar(onBack = onBack)
 
       // Three-column work area: ingredients, cauldron, and step checklist.
       Row(
@@ -134,11 +151,16 @@ fun BrewingScreen(
       ) {
         IngredientRack(
           visuals = ingredientVisuals,
-          selectedIds = selectedIds,
+          selectedCounts = selectedCounts,
           canAddMore = canAddMore,
           onIngredientDropped = { ingredient ->
-            if (ingredient.id !in selectedIds && selectedIds.size < 3) {
+            val alreadySelected = selectedCounts[ingredient.id] ?: 0
+            if (alreadySelected < ingredient.stockCount && selectedIds.size < 3) {
               selectedIds.add(ingredient.id)
+              selectedToneIndex = -1
+              stirrerOffset = Offset.Zero
+              stirBaseMs = 0L
+              stirDragStartMs = null
             }
           },
           onDragStateChange = { dragState = it },
@@ -152,7 +174,15 @@ fun BrewingScreen(
           stirProgress = stirProgress,
           stirrerOffset = stirrerOffset,
           canStir = canStir,
+          ambientFloat = cauldronFloat,
+          bubbleFloat = bubbleFloat,
           onCauldronBoundsChange = { cauldronBounds = it },
+          onRemoveIngredient = { ingredientIndex ->
+            if (ingredientIndex in selectedIds.indices) {
+              selectedIds.removeAt(ingredientIndex)
+            }
+            resetBrewProgress(keepIngredients = true)
+          },
           onStirDragStart = {
             if (canStir && !isStirred && stirDragStartMs == null) {
               stirDragStartMs = SystemClock.elapsedRealtime()
@@ -180,7 +210,9 @@ fun BrewingScreen(
           stirProgress = stirProgress,
           selectedTone = selectedTone,
           canServe = canServe,
-          onServe = { onServe(selectedIds.toSet()) },
+          onBack = onBack,
+          onReset = { resetBrewProgress(keepIngredients = false) },
+          onServe = { onServe(selectedIds.toList()) },
           modifier = Modifier.width(266.dp).fillMaxHeight(),
         )
       }
@@ -201,19 +233,50 @@ fun BrewingScreen(
 }
 
 @Composable
-private fun BrewingTopBar() {
+private fun BrewingTopBar(
+  onBack: () -> Unit,
+) {
   // Header bar with the brewing title asset and help affordance.
   Row(
     modifier = Modifier.fillMaxWidth(),
     horizontalArrangement = Arrangement.SpaceBetween,
     verticalAlignment = Alignment.Top,
   ) {
-    Image(
-      painter = painterResource(R.drawable.brew_header_bar),
-      contentDescription = null,
-      modifier = Modifier.width(296.dp),
-      contentScale = ContentScale.FillWidth,
-    )
+    Row(
+      horizontalArrangement = Arrangement.spacedBy(12.dp),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFF342823),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF6B5443)),
+      ) {
+        Box(
+          modifier = Modifier.size(width = 64.dp, height = 46.dp).clickable(onClick = onBack),
+          contentAlignment = Alignment.Center,
+        ) {
+          Text(
+            text = "←",
+            color = Color(0xFFF0D39D),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+          )
+        }
+      }
+      Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xE8342823),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF6B5443)),
+      ) {
+        Text(
+          text = "Приготовление",
+          modifier = Modifier.padding(horizontal = 28.dp, vertical = 10.dp),
+          color = Color(0xFFF3E3CF),
+          style = MaterialTheme.typography.headlineSmall,
+          fontWeight = FontWeight.SemiBold,
+        )
+      }
+    }
 
     Surface(
       shape = RoundedCornerShape(12.dp),
@@ -238,7 +301,7 @@ private fun BrewingTopBar() {
 @Composable
 private fun IngredientRack(
   visuals: List<Pair<Ingredient, BrewIngredientVisual>>,
-  selectedIds: List<String>,
+  selectedCounts: Map<String, Int>,
   canAddMore: Boolean,
   cauldronBounds: Rect?,
   onIngredientDropped: (Ingredient) -> Unit,
@@ -246,22 +309,36 @@ private fun IngredientRack(
   modifier: Modifier = Modifier,
 ) {
   // Vertical rack of ingredient slots available for the current recipe.
-  Column(
-    modifier = modifier,
-    verticalArrangement = Arrangement.spacedBy(8.dp),
-  ) {
-    visuals.take(4).forEach { (ingredient, visual) ->
-      val isSelected = ingredient.id in selectedIds
-      val enabled = isSelected || canAddMore
-      IngredientTile(
-        visual = visual,
-        selected = isSelected,
-        enabled = enabled,
-        onDropped = { onIngredientDropped(ingredient) },
-        onDragStateChange = onDragStateChange,
-        cauldronBounds = cauldronBounds,
-        ingredient = ingredient,
-        modifier = Modifier.weight(1f).fillMaxWidth(),
+  Box(modifier = modifier) {
+    Column(
+      modifier = Modifier.fillMaxSize().padding(end = 8.dp).verticalScroll(rememberScrollState()),
+      verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+      visuals.forEach { (ingredient, visual) ->
+        val selectedCount = selectedCounts[ingredient.id] ?: 0
+        val enabled = canAddMore && selectedCount < ingredient.stockCount
+        IngredientTile(
+          visual = visual,
+          selectedCount = selectedCount,
+          enabled = enabled,
+          onDropped = { onIngredientDropped(ingredient) },
+          onDragStateChange = onDragStateChange,
+          cauldronBounds = cauldronBounds,
+          modifier = Modifier.height(90.dp).fillMaxWidth(),
+        )
+      }
+    }
+    Surface(
+      modifier = Modifier.align(Alignment.BottomEnd),
+      shape = RoundedCornerShape(999.dp),
+      color = Color(0xCC2A1D18),
+    ) {
+      Text(
+        text = "↕",
+        modifier = Modifier.padding(horizontal = 5.dp, vertical = 3.dp),
+        color = Color(0xFFF0D39D),
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
       )
     }
   }
@@ -269,9 +346,8 @@ private fun IngredientRack(
 
 @Composable
 private fun IngredientTile(
-  ingredient: Ingredient,
   visual: BrewIngredientVisual,
-  selected: Boolean,
+  selectedCount: Int,
   enabled: Boolean,
   cauldronBounds: Rect?,
   onDropped: () -> Unit,
@@ -281,7 +357,7 @@ private fun IngredientTile(
   val backgroundRes =
     when {
       !enabled -> R.drawable.brew_slot_locked
-      selected -> R.drawable.brew_slot_selected
+      selectedCount > 0 -> R.drawable.brew_slot_selected
       else -> R.drawable.brew_slot_default
     }
   var originInRoot by remember { mutableStateOf(Offset.Zero) }
@@ -295,29 +371,27 @@ private fun IngredientTile(
           val bounds = coordinates.boundsInRoot()
           originInRoot = Offset(bounds.left + bounds.width / 2f, bounds.top + bounds.height / 2f)
         }
-        .pointerInput(enabled, selected, cauldronBounds) {
-          detectDragGestures(
-            onDragStart = {
-              if (enabled && !selected) {
+        .pointerInput(enabled, selectedCount, cauldronBounds) {
+          if (enabled) {
+            detectDragGesturesAfterLongPress(
+              onDragStart = {
                 currentPosition = originInRoot
-                onDragStateChange(DragState(ingredient, visual, currentPosition))
-              }
-            },
-            onDrag = { change, dragAmount ->
-              change.consume()
-              if (enabled && !selected) {
+                onDragStateChange(DragState(visual, currentPosition))
+              },
+              onDrag = { change, dragAmount ->
+                change.consume()
                 currentPosition += dragAmount
-                onDragStateChange(DragState(ingredient, visual, currentPosition))
-              }
-            },
-            onDragEnd = {
-              if (enabled && !selected && cauldronBounds?.contains(currentPosition) == true) {
-                onDropped()
-              }
-              onDragStateChange(null)
-            },
-            onDragCancel = { onDragStateChange(null) },
-          )
+                onDragStateChange(DragState(visual, currentPosition))
+              },
+              onDragEnd = {
+                if (cauldronBounds?.contains(currentPosition) == true) {
+                  onDropped()
+                }
+                onDragStateChange(null)
+              },
+              onDragCancel = { onDragStateChange(null) },
+            )
+          }
         },
   ) {
     Image(
@@ -333,7 +407,7 @@ private fun IngredientTile(
       contentScale = ContentScale.Fit,
     )
     Text(
-      text = visual.count.toString(),
+      text = "${visual.count - selectedCount}",
       modifier = Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 16.dp),
       color = Color(0xFFF4E8D4),
       style = MaterialTheme.typography.headlineSmall,
@@ -349,7 +423,10 @@ private fun CauldronStage(
   stirProgress: Float,
   stirrerOffset: Offset,
   canStir: Boolean,
+  ambientFloat: Float,
+  bubbleFloat: Float,
   onCauldronBoundsChange: (Rect) -> Unit,
+  onRemoveIngredient: (Int) -> Unit,
   onStirDragStart: () -> Unit,
   onStirDrag: (Offset) -> Unit,
   onStirDragEnd: () -> Unit,
@@ -381,8 +458,26 @@ private fun CauldronStage(
         modifier =
           Modifier
             .align(Alignment.Center)
-            .offset(y = (-8).dp)
+            .offset(y = (-8).dp + ambientFloat.dp)
             .size(width = 236.dp, height = 90.dp)
+            .clip(CircleShape)
+            .background(liquidColor.copy(alpha = 0.44f)),
+      )
+      Box(
+        modifier =
+          Modifier
+            .align(Alignment.Center)
+            .offset(x = (-48).dp, y = (-18).dp + bubbleFloat.dp / 3)
+            .size(18.dp)
+            .clip(CircleShape)
+            .background(liquidColor.copy(alpha = 0.26f)),
+      )
+      Box(
+        modifier =
+          Modifier
+            .align(Alignment.Center)
+            .offset(x = 42.dp, y = 8.dp - bubbleFloat.dp / 2)
+            .size(12.dp)
             .clip(CircleShape)
             .background(liquidColor.copy(alpha = 0.34f)),
       )
@@ -421,9 +516,20 @@ private fun CauldronStage(
               .align(Alignment.Center)
               .offset(
                 x = ingredientOffset.x.dp,
-                y = ingredientOffset.y.dp,
+                y = ingredientOffset.y.dp + ambientFloat.dp / 2,
               ),
           contentScale = ContentScale.Fit,
+        )
+        Box(
+          modifier =
+            Modifier
+              .size(56.dp)
+              .align(Alignment.Center)
+              .offset(
+                x = ingredientOffset.x.dp,
+                y = ingredientOffset.y.dp + ambientFloat.dp / 2,
+              )
+              .clickable { onRemoveIngredient(index) },
         )
       }
 
@@ -434,7 +540,12 @@ private fun CauldronStage(
         color = Color(0xAA1B140F),
       ) {
         Text(
-          text = if (selectedIngredients.isEmpty()) "Перетащи ингредиенты в котел" else "В котле: ${selectedIngredients.size}/3 • Перемешано: ${(stirProgress * 100).toInt()}%",
+          text =
+            if (selectedIngredients.isEmpty()) {
+              "Перетащи ингредиенты в котел"
+            } else {
+              "В котле: ${selectedIngredients.size}/3"
+            },
           modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
           color = Color(0xFFF3E5D2),
           style = MaterialTheme.typography.labelLarge,
@@ -491,6 +602,8 @@ private fun BrewingStepsPanel(
   stirProgress: Float,
   selectedTone: BrewTone?,
   canServe: Boolean,
+  onBack: () -> Unit = {},
+  onReset: () -> Unit,
   onServe: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
@@ -520,21 +633,45 @@ private fun BrewingStepsPanel(
       accent = selectedTone?.color,
     )
     BrewStepCard(
-      iconRes = R.drawable.brew_item_honey_bottle,
-      title = "4. Разлей",
-      subtitle = if (canServe) "Можно подавать" else "Не все шаги завершены",
-      modifier = Modifier.height(78.dp).fillMaxWidth(),
+      iconRes = R.drawable.recipe_starglow_tonic,
+      title = "4. Подай напиток",
+      subtitle = if (canServe) "Напиток готов — нажми «Подать»" else "Нужно 3 ингредиента, перемешивание и цвет",
+      modifier = Modifier.height(144.dp).fillMaxWidth(),
       footerButton = {
-        Button(
-          onClick = onServe,
-          enabled = canServe,
-          modifier = Modifier.fillMaxWidth().height(26.dp),
+        Column(
+          verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-          Text(
-            text = "Подать",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-          )
+          Button(
+            onClick = onServe,
+            enabled = canServe,
+            modifier = Modifier.fillMaxWidth().height(30.dp),
+          ) {
+            Text(
+              text = "Подать",
+              style = MaterialTheme.typography.labelMedium,
+              fontWeight = FontWeight.SemiBold,
+            )
+          }
+          Button(
+            onClick = onBack,
+            modifier = Modifier.fillMaxWidth().height(28.dp),
+          ) {
+            Text(
+              text = "Назад",
+              style = MaterialTheme.typography.labelMedium,
+              fontWeight = FontWeight.SemiBold,
+            )
+          }
+          Button(
+            onClick = onReset,
+            modifier = Modifier.fillMaxWidth().height(28.dp),
+          ) {
+            Text(
+              text = "Сбросить",
+              style = MaterialTheme.typography.labelMedium,
+              fontWeight = FontWeight.SemiBold,
+            )
+          }
         }
       },
     )
@@ -693,6 +830,7 @@ private fun BrewingScreenPreview() {
   MoonbrewTavernTheme {
     BrewingScreen(
       scenario = DefaultDataRepository().scenario,
+      onBack = {},
       onServe = {},
     )
   }

@@ -1,7 +1,6 @@
 package com.example.moonbrewtavern.data
 
 import com.example.moonbrewtavern.data.content.ContentCatalog
-import com.example.moonbrewtavern.data.content.firstNightOutcome
 import com.example.moonbrewtavern.data.content.scenarioForVisitor
 import com.example.moonbrewtavern.data.content.visitors.lyraVisitor
 import com.example.moonbrewtavern.domain.model.BrewResult
@@ -74,11 +73,20 @@ interface DataRepository {
   /** Advances the active flow from recipe selection into brewing. */
   fun openBrewing()
 
+  /** Selects an already unlocked recipe for the current order. */
+  fun selectRecipe(recipeId: String)
+
+  /** Purchases a recipe with gold and unlocks it permanently for this session. */
+  fun purchaseRecipe(recipeId: String, price: Int): Boolean
+
+  /** Purchases ingredient units and adds them to persistent stock. */
+  fun purchaseIngredient(ingredientId: String, quantity: Int, unitPrice: Int): Boolean
+
   /** Scores a brew against the active recipe without mutating the night state. */
-  fun evaluateBrew(selectedIngredientIds: Set<String>): BrewResult
+  fun evaluateBrew(selectedIngredientIds: List<String>): BrewResult
 
   /** Applies a brewed drink to the current guest and returns the resulting score. */
-  fun serveBrew(selectedIngredientIds: Set<String>): BrewResult
+  fun serveBrew(selectedIngredientIds: List<String>): BrewResult
 
   /** Starts the departure/result flow for a guest who is ready to leave. */
   fun collectGuestDeparture(visitorId: String)
@@ -94,6 +102,7 @@ interface DataRepository {
 class DefaultDataRepository : DataRepository {
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
   private var nightJob: Job? = null
+  private var activeRecipeId: String = ContentCatalog.recipes.first().id
 
   private val initialVisitorStates = ContentCatalog.visitors.associate { it.id to VisitorState() }
 
@@ -105,6 +114,7 @@ class DefaultDataRepository : DataRepository {
         reputation = 4,
         phase = GamePhase.Entrance,
         unlockedRecipeIds = setOf(ContentCatalog.recipes.first().id),
+        ingredientStock = ContentCatalog.ingredients.associate { it.id to it.stockCount },
         visitorStates = initialVisitorStates,
         tavern = TavernState(capacity = 3, occupiedSeats = 0),
       ),
@@ -114,7 +124,7 @@ class DefaultDataRepository : DataRepository {
   private val _nightState =
     MutableStateFlow(
       NightState(
-        queueVisitorIds = ContentCatalog.starterQueueVisitorIds,
+        queueVisitorIds = queueForDay(3),
         pendingVisitorIds = emptyList(),
         guests = emptyList(),
         currentVisitorId = null,
@@ -133,7 +143,7 @@ class DefaultDataRepository : DataRepository {
     stopNightLoop()
     _nightState.value =
       NightState(
-        queueVisitorIds = ContentCatalog.starterQueueVisitorIds,
+        queueVisitorIds = queueForDay(_gameState.value.day),
         pendingVisitorIds = emptyList(),
         guests = emptyList(),
         currentVisitorId = null,
@@ -178,19 +188,23 @@ class DefaultDataRepository : DataRepository {
     _nightState.update { state ->
       state.copy(queueVisitorIds = state.queueVisitorIds - visitorId)
     }
+    if (_nightState.value.queueVisitorIds.isEmpty() && _nightState.value.guests.isEmpty()) {
+      finishNight()
+    }
   }
 
   override fun enterTavern() {
     val snapshot = _nightState.value
     if (snapshot.guests.isEmpty()) return
 
+    val isOpeningTavern = snapshot.phase == NightPhase.Entrance
     _nightState.value =
       snapshot.copy(
         phase = NightPhase.Tavern,
         pendingVisitorIds = emptyList(),
-        remainingNightMs = GameLoopConfig.nightDurationMs,
-        elapsedNightMs = 0L,
-        nightEnded = false,
+        remainingNightMs = if (isOpeningTavern) GameLoopConfig.nightDurationMs else snapshot.remainingNightMs,
+        elapsedNightMs = if (isOpeningTavern) 0L else snapshot.elapsedNightMs,
+        nightEnded = if (isOpeningTavern) false else snapshot.nightEnded,
         currentVisitorId = snapshot.guests.firstOrNull { it.status == TavernGuestStatus.WaitingForOrder }?.visitorId,
       )
     _gameState.update { it.copy(phase = GamePhase.Tavern) }
@@ -199,6 +213,7 @@ class DefaultDataRepository : DataRepository {
   }
 
   override fun returnToEntrance() {
+    stopNightLoop()
     _nightState.update { it.copy(phase = NightPhase.Entrance) }
     _gameState.update { it.copy(phase = GamePhase.Entrance) }
   }
@@ -207,6 +222,7 @@ class DefaultDataRepository : DataRepository {
     val guest = _nightState.value.guests.firstOrNull { it.visitorId == visitorId } ?: return
     if (guest.status != TavernGuestStatus.WaitingForOrder) return
 
+    stopNightLoop()
     _nightState.update { state ->
       state.copy(currentVisitorId = visitorId, phase = NightPhase.Dialogue)
     }
@@ -226,29 +242,84 @@ class DefaultDataRepository : DataRepository {
     rebuildScenario()
   }
 
-  override fun evaluateBrew(selectedIngredientIds: Set<String>): BrewResult {
+  override fun selectRecipe(recipeId: String) {
+    if (recipeId !in _gameState.value.unlockedRecipeIds || recipeId !in ContentCatalog.recipesById) return
+    activeRecipeId = recipeId
+    rebuildScenario()
+  }
+
+  override fun purchaseRecipe(recipeId: String, price: Int): Boolean {
+    if (recipeId !in ContentCatalog.recipesById || price < 0) return false
+    val snapshot = _gameState.value
+    if (recipeId in snapshot.unlockedRecipeIds) {
+      selectRecipe(recipeId)
+      return true
+    }
+    if (snapshot.gold < price) return false
+
+    _gameState.value =
+      snapshot.copy(
+        gold = snapshot.gold - price,
+        unlockedRecipeIds = snapshot.unlockedRecipeIds + recipeId,
+      )
+    activeRecipeId = recipeId
+    rebuildScenario()
+    return true
+  }
+
+  override fun purchaseIngredient(ingredientId: String, quantity: Int, unitPrice: Int): Boolean {
+    if (ingredientId !in ContentCatalog.ingredients.map { it.id } || quantity <= 0 || unitPrice < 0) return false
+    val totalPrice = quantity * unitPrice
+    val snapshot = _gameState.value
+    if (snapshot.gold < totalPrice) return false
+
+    _gameState.value =
+      snapshot.copy(
+        gold = snapshot.gold - totalPrice,
+        ingredientStock =
+          snapshot.ingredientStock + (
+            ingredientId to ((snapshot.ingredientStock[ingredientId] ?: 0) + quantity)
+          ),
+      )
+    rebuildScenario()
+    return true
+  }
+
+  override fun evaluateBrew(selectedIngredientIds: List<String>): BrewResult {
     val activeScenario = scenario
-    val selectedIngredients = activeScenario.availableIngredients.filter { it.id in selectedIngredientIds }
-    val requiredIds = activeScenario.recipe.requiredIngredients.mapTo(linkedSetOf()) { it.id }
-    val matchedIngredients = selectedIngredients.count { it.id in requiredIds }
-    val isExactMatch = selectedIngredientIds.size == requiredIds.size && selectedIngredientIds == requiredIds
+    val selectedIngredients = selectedIngredientIds.mapNotNull { selectedId -> activeScenario.availableIngredients.firstOrNull { it.id == selectedId } }
+    val requiredIds = activeScenario.recipe.requiredIngredients.map { it.id }
+    val remainingRequiredIds = requiredIds.toMutableList()
+    val matchedIngredients =
+      selectedIngredientIds.count { selectedId ->
+        val matchedIndex = remainingRequiredIds.indexOf(selectedId)
+        if (matchedIndex >= 0) {
+          remainingRequiredIds.removeAt(matchedIndex)
+          true
+        } else {
+          false
+        }
+      }
+    val isExactMatch =
+      selectedIngredientIds.size == requiredIds.size &&
+        selectedIngredientIds.groupingBy { it }.eachCount() == requiredIds.groupingBy { it }.eachCount()
 
     val outcome =
       when {
         isExactMatch -> activeScenario.outcome
         matchedIngredients >= 2 ->
           ServingOutcome(
-            title = "A steady hand, if not a perfect one",
-            summary = "${activeScenario.visitor.name} studies the glass for a beat, then nods. The drink lands close enough to earn respect, even if the finish strays a little richer than expected.",
-            reactionLine = "Not quite the shape I imagined, but the intention is there.",
+            title = "Почти идеальный напиток",
+            summary = "${activeScenario.visitor.name} внимательно пробует напиток и кивает. Вкус близок к заказу, хотя послевкусие получилось немного насыщеннее.",
+            reactionLine = "Не совсем то, что я представлял, но замысел чувствуется.",
             goldReward = 4,
             reputationReward = 1,
           )
         else ->
           ServingOutcome(
-            title = "A rough first pour",
-            summary = "${activeScenario.visitor.name} finishes only half the cup. The effort is noticed, but the tavern still feels like a promise more than a certainty.",
-            reactionLine = "There is heart in it. The rest can come later.",
+            title = "Первый глоток вышел неровным",
+            summary = "${activeScenario.visitor.name} выпивает лишь половину кружки. Старание замечено, но рецепт еще стоит доработать.",
+            reactionLine = "В этом есть душа. Остальное придет с опытом.",
             goldReward = 1,
             reputationReward = 0,
           )
@@ -262,10 +333,26 @@ class DefaultDataRepository : DataRepository {
     )
   }
 
-  override fun serveBrew(selectedIngredientIds: Set<String>): BrewResult {
+  override fun serveBrew(selectedIngredientIds: List<String>): BrewResult {
     val visitorId = _nightState.value.currentVisitorId ?: lyraVisitor.id
+    val requestedCounts = selectedIngredientIds.groupingBy { it }.eachCount()
+    val hasEnoughStock =
+      requestedCounts.all { (ingredientId, count) ->
+        (_gameState.value.ingredientStock[ingredientId] ?: 0) >= count
+      }
+    if (!hasEnoughStock) {
+      return evaluateBrew(emptyList())
+    }
     val result = evaluateBrew(selectedIngredientIds)
     _lastBrewResult.value = result
+    _gameState.update { state ->
+      state.copy(
+        ingredientStock =
+          state.ingredientStock.mapValues { (ingredientId, stock) ->
+            (stock - (requestedCounts[ingredientId] ?: 0)).coerceAtLeast(0)
+          },
+      )
+    }
 
     val updatedGuests =
       _nightState.value.guests.map { guest ->
@@ -292,6 +379,7 @@ class DefaultDataRepository : DataRepository {
     }
     _gameState.update { it.copy(phase = GamePhase.Tavern) }
     rebuildScenario(nextCurrentVisitorId)
+    startNightLoop()
     return result
   }
 
@@ -299,6 +387,7 @@ class DefaultDataRepository : DataRepository {
     val guest = _nightState.value.guests.firstOrNull { it.visitorId == visitorId } ?: return
     if (guest.status != TavernGuestStatus.WantsToLeave) return
 
+    stopNightLoop()
     val departureResult = guest.brewResult ?: unresolvedDepartureFor(visitorId)
     val updatedGuests = _nightState.value.guests.filterNot { it.visitorId == visitorId }
 
@@ -354,17 +443,25 @@ class DefaultDataRepository : DataRepository {
         phase = if (updatedGuests.isEmpty() && state.nightEnded) NightPhase.Summary else NightPhase.Tavern,
       )
     }
+    val hasWaitingQueue = _nightState.value.queueVisitorIds.isNotEmpty()
     _gameState.update {
       it.copy(
-        phase = if (_nightState.value.nightEnded && updatedGuests.isEmpty()) GamePhase.Entrance else GamePhase.Tavern,
+        phase = if (updatedGuests.isEmpty()) GamePhase.Entrance else GamePhase.Tavern,
       )
     }
     syncOccupiedSeats(updatedGuests.size)
     _lastBrewResult.value = null
     rebuildScenario(nextCurrentVisitorId)
 
-    if (_nightState.value.nightEnded && updatedGuests.isEmpty()) {
+    if (updatedGuests.isEmpty() && !hasWaitingQueue) {
       finishNight()
+    } else if (updatedGuests.isEmpty()) {
+      _nightState.update { state ->
+        state.copy(currentVisitorId = null, phase = NightPhase.Entrance)
+      }
+      rebuildScenario()
+    } else if (!_nightState.value.nightEnded) {
+      startNightLoop()
     }
   }
 
@@ -398,7 +495,7 @@ class DefaultDataRepository : DataRepository {
 
   private fun advanceNight() {
     val snapshot = _nightState.value
-    if (snapshot.phase == NightPhase.Entrance || snapshot.nightEnded) return
+    if (snapshot.phase != NightPhase.Tavern || snapshot.nightEnded) return
 
     val elapsed = snapshot.elapsedNightMs + GameLoopConfig.nightTickMs
     val remaining = (snapshot.remainingNightMs - GameLoopConfig.nightTickMs).coerceAtLeast(0L)
@@ -460,9 +557,9 @@ class DefaultDataRepository : DataRepository {
       isExactMatch = false,
       outcome =
         ServingOutcome(
-          title = "${visitor.name} leaves unsatisfied",
-          summary = "${visitor.name} waited through the last stretch of the night, then rose from the table with an apologetic nod and no drink to remember the tavern by.",
-          reactionLine = "Perhaps another evening.",
+          title = "${visitor.name} уходит без напитка",
+          summary = "${visitor.name} не дождался напитка и покинул таверну с коротким прощальным кивком.",
+          reactionLine = "Возможно, в другой вечер.",
           goldReward = 0,
           reputationReward = -1,
         ),
@@ -471,6 +568,16 @@ class DefaultDataRepository : DataRepository {
 
   private fun rebuildScenario(visitorId: String? = _nightState.value.currentVisitorId ?: lyraVisitor.id) {
     val activeVisitor = ContentCatalog.visitorsById[visitorId] ?: lyraVisitor
-    _data.value = scenarioForVisitor(activeVisitor, _gameState.value)
+    val activeRecipe = ContentCatalog.recipesById[activeRecipeId] ?: ContentCatalog.recipes.first()
+    _data.value = scenarioForVisitor(activeVisitor, _gameState.value, activeRecipe)
+  }
+
+  private companion object {
+    fun queueForDay(day: Int): List<String> {
+      val visitors = ContentCatalog.starterQueueVisitorIds
+      if (visitors.isEmpty()) return emptyList()
+      val shift = day % visitors.size
+      return visitors.drop(shift) + visitors.take(shift)
+    }
   }
 }

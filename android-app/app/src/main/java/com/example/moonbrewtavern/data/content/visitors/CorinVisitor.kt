@@ -39,9 +39,9 @@ val corinDefinition =
       ),
     assets =
       VisitorAssets(
-        queueRes = R.drawable.npc_elder,
-        tavernSeatRes = R.drawable.tavern_room_guest_one,
-        dialoguePortraitRes = R.drawable.npc_elder,
-        resultPortraitRes = R.drawable.npc_elder,
+        queueRes = R.drawable.portrait_corin,
+        tavernSeatRes = R.drawable.portrait_corin,
+        dialoguePortraitRes = R.drawable.portrait_corin,
+        resultPortraitRes = R.drawable.portrait_corin,
       ),
   )
