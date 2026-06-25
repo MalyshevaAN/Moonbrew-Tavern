@@ -20,3 +20,6 @@ import kotlinx.serialization.Serializable
 
 /** Outcome screen shown after a guest finishes the visit. */
 @Serializable data object Result : NavKey
+
+/** Summary screen shown after the night fully ends. */
+@Serializable data object Summary : NavKey

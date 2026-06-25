@@ -4,11 +4,12 @@ import com.example.moonbrewtavern.data.DataRepository
 import com.example.moonbrewtavern.data.DefaultDataRepository
 import com.example.moonbrewtavern.domain.model.BrewResult
 import com.example.moonbrewtavern.domain.model.GameState
+import com.example.moonbrewtavern.domain.model.NightSummary
 import com.example.moonbrewtavern.domain.model.NightState
 import junit.framework.TestCase.assertTrue
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -34,6 +35,7 @@ private class FakeMyModelRepository : DataRepository {
   override val gameState: StateFlow<GameState> = MutableStateFlow(backingRepository.gameState.value)
   override val nightState: StateFlow<NightState> = MutableStateFlow(backingRepository.nightState.value)
   override val lastBrewResult: StateFlow<BrewResult?> = MutableStateFlow(null)
+  override val lastNightSummary: StateFlow<NightSummary?> = MutableStateFlow(null)
 
   override fun evaluateBrew(selectedIngredientIds: List<String>): BrewResult = DefaultDataRepository().evaluateBrew(selectedIngredientIds)
 
@@ -63,4 +65,6 @@ private class FakeMyModelRepository : DataRepository {
   override fun purchaseIngredient(ingredientId: String, quantity: Int, unitPrice: Int): Boolean = false
 
   override fun finishNight() = Unit
+
+  override fun confirmNightSummary() = Unit
 }

@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -360,7 +359,7 @@ private fun IngredientTile(
       selectedCount > 0 -> R.drawable.brew_slot_selected
       else -> R.drawable.brew_slot_default
     }
-  var originInRoot by remember { mutableStateOf(Offset.Zero) }
+  var tileBoundsInRoot by remember { mutableStateOf(Rect.Zero) }
   var currentPosition by remember { mutableStateOf(Offset.Zero) }
 
   // Draggable ingredient slot that can drop its item into the cauldron.
@@ -368,14 +367,17 @@ private fun IngredientTile(
     modifier =
       modifier
         .onGloballyPositioned { coordinates ->
-          val bounds = coordinates.boundsInRoot()
-          originInRoot = Offset(bounds.left + bounds.width / 2f, bounds.top + bounds.height / 2f)
+          tileBoundsInRoot = coordinates.boundsInRoot()
         }
         .pointerInput(enabled, selectedCount, cauldronBounds) {
           if (enabled) {
-            detectDragGesturesAfterLongPress(
-              onDragStart = {
-                currentPosition = originInRoot
+            detectDragGestures(
+              onDragStart = { dragStartOffset ->
+                currentPosition =
+                  Offset(
+                    x = tileBoundsInRoot.left + dragStartOffset.x,
+                    y = tileBoundsInRoot.top + dragStartOffset.y,
+                  )
                 onDragStateChange(DragState(visual, currentPosition))
               },
               onDrag = { change, dragAmount ->

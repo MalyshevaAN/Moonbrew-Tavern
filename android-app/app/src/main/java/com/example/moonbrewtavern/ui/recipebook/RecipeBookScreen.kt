@@ -731,13 +731,17 @@ private fun ingredientPrice(id: String): Int =
     else -> 2
   }
 
+private val previewRecipeBookRepository = DefaultDataRepository()
+private val previewRecipeBookScenario = previewRecipeBookRepository.scenario
+private val previewRecipeBookGameState = previewRecipeBookRepository.gameState.value
+
 @Preview(showBackground = true, widthDp = 960, heightDp = 540)
 @Composable
 private fun RecipeBookScreenPreview() {
   MoonbrewTavernTheme {
     RecipeBookScreen(
-      scenario = DefaultDataRepository().scenario,
-      gameState = DefaultDataRepository().gameState.value,
+      scenario = previewRecipeBookScenario,
+      gameState = previewRecipeBookGameState,
       onBack = {},
       onSelectRecipe = {},
       onPurchaseRecipe = { _, _ -> false },

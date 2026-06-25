@@ -3,36 +3,91 @@ package com.example.moonbrewtavern
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.moonbrewtavern.data.DefaultDataRepository
 import com.example.moonbrewtavern.data.content.ContentCatalog
+import com.example.moonbrewtavern.data.persistence.DataStoreGameSaveStore
+import com.example.moonbrewtavern.domain.model.GamePhase
 import com.example.moonbrewtavern.ui.brewing.BrewingScreen
 import com.example.moonbrewtavern.ui.dialogue.DialogueScreen
 import com.example.moonbrewtavern.ui.entrance.EntranceScreen
 import com.example.moonbrewtavern.ui.recipebook.RecipeBookScreen
 import com.example.moonbrewtavern.ui.result.ResultScreen
+import com.example.moonbrewtavern.ui.summary.NightSummaryScreen
 import com.example.moonbrewtavern.ui.tavernroom.TavernRoomScreen
 
 /** Wires the repository-backed night flow into the app navigation graph. */
 @Composable
 fun MainNavigation() {
-  val repository = remember { DefaultDataRepository() }
+  val context = LocalContext.current
+  val saveStore = remember(context.applicationContext) { DataStoreGameSaveStore(context.applicationContext) }
+  val repository by
+    produceState<DefaultDataRepository?>(initialValue = null, saveStore) {
+      val initialSnapshot = saveStore.read()
+      value = DefaultDataRepository(saveStore = saveStore, initialSnapshot = initialSnapshot)
+    }
+  if (repository == null) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+      CircularProgressIndicator()
+    }
+    return
+  }
+  val loadedRepository = repository ?: return
   val backStack = rememberNavBackStack(Main)
-  val scenario by repository.data.collectAsStateWithLifecycle()
-  val gameState by repository.gameState.collectAsStateWithLifecycle()
-  val nightState by repository.nightState.collectAsStateWithLifecycle()
-  val brewResult by repository.lastBrewResult.collectAsStateWithLifecycle()
+  val scenario by loadedRepository.data.collectAsStateWithLifecycle()
+  val gameState by loadedRepository.gameState.collectAsStateWithLifecycle()
+  val nightState by loadedRepository.nightState.collectAsStateWithLifecycle()
+  val brewResult by loadedRepository.lastBrewResult.collectAsStateWithLifecycle()
+  val nightSummary by loadedRepository.lastNightSummary.collectAsStateWithLifecycle()
 
-  LaunchedEffect(gameState.phase, backStack.size) {
-    if (gameState.phase == com.example.moonbrewtavern.domain.model.GamePhase.Entrance && backStack.size > 1) {
-      while (backStack.size > 1) {
-        backStack.removeLastOrNull()
+  LaunchedEffect(gameState.phase, nightState.queueVisitorIds, nightState.guests) {
+    if (
+      gameState.phase == GamePhase.Entrance &&
+      nightState.queueVisitorIds.isEmpty() &&
+      nightState.guests.isEmpty()
+    ) {
+      loadedRepository.finishNight()
+    }
+  }
+
+  LaunchedEffect(gameState.phase) {
+    val targetStack =
+      when (gameState.phase) {
+        GamePhase.Entrance -> listOf(Main)
+        GamePhase.Tavern -> listOf(Main, TavernRoom)
+        GamePhase.Dialogue -> listOf(Main, TavernRoom, Dialogue)
+        GamePhase.RecipeBook -> listOf(Main, TavernRoom, Dialogue, RecipeBook)
+        GamePhase.Brewing -> listOf(Main, TavernRoom, Dialogue, RecipeBook, Brewing)
+        GamePhase.Result -> listOf(Main, TavernRoom, Result)
+        GamePhase.Summary -> listOf(Main, Summary)
       }
+
+    targetStack.forEachIndexed { index, navKey ->
+      if (backStack.getOrNull(index) != navKey) {
+        while (backStack.size > index) {
+          backStack.removeLastOrNull()
+        }
+        targetStack.drop(index).forEach(backStack::add)
+        return@LaunchedEffect
+      }
+    }
+
+    while (backStack.size > targetStack.size) {
+      backStack.removeLastOrNull()
+    }
+    while (backStack.size < targetStack.size) {
+      backStack.add(targetStack[backStack.size])
     }
   }
 
@@ -40,19 +95,25 @@ fun MainNavigation() {
     backStack = backStack,
     onBack = {
       if (backStack.lastOrNull() == Result) {
-        repository.confirmGuestDeparture()
+        loadedRepository.confirmGuestDeparture()
+        backStack.removeLastOrNull()
+        return@NavDisplay
+      }
+      if (backStack.lastOrNull() == Summary) {
+        loadedRepository.confirmNightSummary()
         backStack.removeLastOrNull()
         return@NavDisplay
       }
 
       backStack.removeLastOrNull()
       when (backStack.lastOrNull()) {
-        Main -> repository.returnToEntrance()
-        TavernRoom -> repository.enterTavern()
-        Dialogue -> nightState.currentVisitorId?.let(repository::startDialogue)
-        RecipeBook -> repository.openRecipeBook()
-        Brewing -> repository.openBrewing()
+        Main -> loadedRepository.returnToEntrance()
+        TavernRoom -> loadedRepository.enterTavern()
+        Dialogue -> nightState.currentVisitorId?.let(loadedRepository::startDialogue)
+        RecipeBook -> loadedRepository.openRecipeBook()
+        Brewing -> loadedRepository.openBrewing()
         Result -> {}
+        Summary -> {}
         null -> {}
       }
     },
@@ -63,10 +124,10 @@ fun MainNavigation() {
             gameState = gameState,
             nightState = nightState,
             visitorDefinitions = ContentCatalog.visitorDefinitionsById,
-            onAdmit = repository::admitVisitor,
-            onReject = repository::rejectVisitor,
+            onAdmit = loadedRepository::admitVisitor,
+            onReject = loadedRepository::rejectVisitor,
             onEnterTavern = {
-              repository.enterTavern()
+              loadedRepository.enterTavern()
               backStack.add(TavernRoom)
             },
             modifier = Modifier,
@@ -81,18 +142,18 @@ fun MainNavigation() {
               val guest = nightState.guests.firstOrNull { it.visitorId == visitorId }
               when (guest?.status) {
                 com.example.moonbrewtavern.domain.model.TavernGuestStatus.WaitingForOrder -> {
-                  repository.startDialogue(visitorId)
+                  loadedRepository.startDialogue(visitorId)
                   backStack.add(Dialogue)
                 }
                 com.example.moonbrewtavern.domain.model.TavernGuestStatus.WantsToLeave -> {
-                  repository.collectGuestDeparture(visitorId)
+                  loadedRepository.collectGuestDeparture(visitorId)
                   backStack.add(Result)
                 }
                 else -> Unit
               }
             },
             onBackToStreet = {
-              repository.returnToEntrance()
+              loadedRepository.returnToEntrance()
               backStack.removeLastOrNull()
             },
             modifier = Modifier,
@@ -102,7 +163,7 @@ fun MainNavigation() {
           DialogueScreen(
             scenario = scenario,
             onContinue = {
-              repository.openRecipeBook()
+              loadedRepository.openRecipeBook()
               backStack.add(RecipeBook)
             },
             modifier = Modifier,
@@ -113,14 +174,14 @@ fun MainNavigation() {
             scenario = scenario,
             gameState = gameState,
             onBack = {
-              repository.startDialogue(scenario.visitor.id)
+              loadedRepository.startDialogue(scenario.visitor.id)
               backStack.removeLastOrNull()
             },
-            onSelectRecipe = repository::selectRecipe,
-            onPurchaseRecipe = repository::purchaseRecipe,
-            onPurchaseIngredient = repository::purchaseIngredient,
+            onSelectRecipe = loadedRepository::selectRecipe,
+            onPurchaseRecipe = loadedRepository::purchaseRecipe,
+            onPurchaseIngredient = loadedRepository::purchaseIngredient,
             onStartBrewing = {
-              repository.openBrewing()
+              loadedRepository.openBrewing()
               backStack.add(Brewing)
             },
             modifier = Modifier,
@@ -130,11 +191,11 @@ fun MainNavigation() {
           BrewingScreen(
             scenario = scenario,
             onBack = {
-              repository.openRecipeBook()
+              loadedRepository.openRecipeBook()
               backStack.removeLastOrNull()
             },
             onServe = { selectedIds ->
-              repository.serveBrew(selectedIds)
+              loadedRepository.serveBrew(selectedIds)
               while (backStack.lastOrNull() != TavernRoom) {
                 backStack.removeLastOrNull()
               }
@@ -146,15 +207,29 @@ fun MainNavigation() {
           ResultScreen(
             scenario = scenario,
             gameState = gameState,
-            brewResult = brewResult ?: repository.evaluateBrew(emptyList()),
+            brewResult = brewResult ?: loadedRepository.evaluateBrew(emptyList()),
             onReturnToTavern = {
-              repository.confirmGuestDeparture()
+              loadedRepository.confirmGuestDeparture()
               while (backStack.lastOrNull() != TavernRoom && backStack.size > 1) {
                 backStack.removeLastOrNull()
               }
             },
             modifier = Modifier,
           )
+        }
+        entry<Summary> {
+          nightSummary?.let { summary ->
+            NightSummaryScreen(
+              summary = summary,
+              onStartNextNight = {
+                loadedRepository.confirmNightSummary()
+                while (backStack.size > 1) {
+                  backStack.removeLastOrNull()
+                }
+              },
+              modifier = Modifier,
+            )
+          }
         }
       },
   )

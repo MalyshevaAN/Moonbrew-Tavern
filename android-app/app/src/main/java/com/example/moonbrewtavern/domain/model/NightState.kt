@@ -1,12 +1,16 @@
 package com.example.moonbrewtavern.domain.model
 
+import kotlinx.serialization.Serializable
+
 /** Runtime state for a single tavern night, including queue, guests, and timers. */
+@Serializable
 data class NightState(
   val queueVisitorIds: List<String> = emptyList(),
   val pendingVisitorIds: List<String> = emptyList(),
   val guests: List<TavernGuest> = emptyList(),
   val currentVisitorId: String? = null,
   val phase: NightPhase = NightPhase.Entrance,
+  val nightStarted: Boolean = false,
   val remainingNightMs: Long = GameLoopConfig.nightDurationMs,
   val elapsedNightMs: Long = 0L,
   val nightEnded: Boolean = false,
@@ -17,6 +21,7 @@ data class NightState(
 }
 
 /** Tracks a guest currently attached to the live tavern floor. */
+@Serializable
 data class TavernGuest(
   val visitorId: String,
   val status: TavernGuestStatus = TavernGuestStatus.WaitingForOrder,
@@ -26,6 +31,7 @@ data class TavernGuest(
 )
 
 /** Service lifecycle for a guest seated inside the tavern. */
+@Serializable
 enum class TavernGuestStatus {
   WaitingForOrder,
   Drinking,
@@ -33,6 +39,7 @@ enum class TavernGuestStatus {
 }
 
 /** More granular phase model for the nightly tavern loop. */
+@Serializable
 enum class NightPhase {
   Entrance,
   Tavern,
