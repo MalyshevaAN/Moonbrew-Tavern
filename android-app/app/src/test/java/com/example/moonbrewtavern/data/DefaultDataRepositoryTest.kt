@@ -3,6 +3,8 @@ package com.example.moonbrewtavern.data
 import com.example.moonbrewtavern.data.persistence.PersistedGameSnapshot
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
+import junit.framework.TestCase.assertNotNull
+import junit.framework.TestCase.assertNull
 import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -50,11 +52,16 @@ class DefaultDataRepositoryTest {
   }
 
   @Test
-  fun rejectingWholeQueue_advancesNightAndRefillsQueue() {
+  fun rejectingWholeQueue_opensSummaryAndStartsNextNightAfterConfirmation() {
     val repository = DefaultDataRepository()
     val firstQueue = repository.nightState.value.queueVisitorIds
 
     firstQueue.forEach(repository::rejectVisitor)
+
+    assertEquals(com.example.moonbrewtavern.domain.model.GamePhase.Summary, repository.gameState.value.phase)
+    assertNotNull(repository.lastNightSummary.value)
+
+    repository.confirmNightSummary()
 
     assertEquals(4, repository.gameState.value.day)
     assertTrue(repository.nightState.value.queueVisitorIds.isNotEmpty())
@@ -111,5 +118,21 @@ class DefaultDataRepositoryTest {
     assertEquals(sourceRepository.gameState.value, restoredRepository.gameState.value)
     assertEquals(sourceRepository.nightState.value, restoredRepository.nightState.value)
     assertEquals("herbal-mix", restoredRepository.scenario.recipe.id)
+  }
+
+  @Test
+  fun finishNight_exposesSummaryUntilNextNightIsConfirmed() {
+    val repository = DefaultDataRepository()
+
+    repository.finishNight()
+
+    assertEquals(com.example.moonbrewtavern.domain.model.GamePhase.Summary, repository.gameState.value.phase)
+    assertNotNull(repository.lastNightSummary.value)
+
+    repository.confirmNightSummary()
+
+    assertEquals(com.example.moonbrewtavern.domain.model.GamePhase.Entrance, repository.gameState.value.phase)
+    assertEquals(4, repository.gameState.value.day)
+    assertNull(repository.lastNightSummary.value)
   }
 }

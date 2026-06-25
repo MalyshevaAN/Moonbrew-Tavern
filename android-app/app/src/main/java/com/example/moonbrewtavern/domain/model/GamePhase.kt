@@ -11,4 +11,5 @@ enum class GamePhase {
   RecipeBook,
   Brewing,
   Result,
+  Summary,
 }

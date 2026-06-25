@@ -10,6 +10,7 @@ import com.example.moonbrewtavern.domain.model.GameLoopConfig
 import com.example.moonbrewtavern.domain.model.GamePhase
 import com.example.moonbrewtavern.domain.model.GameScenario
 import com.example.moonbrewtavern.domain.model.GameState
+import com.example.moonbrewtavern.domain.model.NightSummary
 import com.example.moonbrewtavern.domain.model.NightPhase
 import com.example.moonbrewtavern.domain.model.NightState
 import com.example.moonbrewtavern.domain.model.ServingOutcome
@@ -50,6 +51,9 @@ interface DataRepository {
 
   /** Most recent brew evaluation shown on the result screen. */
   val lastBrewResult: StateFlow<BrewResult?>
+
+  /** Summary shown after a full night has ended. */
+  val lastNightSummary: StateFlow<NightSummary?>
 
   /** Resets the nightly loop and reinitializes the entrance queue. */
   fun startNight()
@@ -96,8 +100,11 @@ interface DataRepository {
   /** Finalizes departure rewards after the result screen has been acknowledged. */
   fun confirmGuestDeparture()
 
-  /** Ends the current night and advances to the next day. */
+  /** Ends the current night and exposes a summary before the next day begins. */
   fun finishNight()
+
+  /** Accepts the night summary and starts the next night. */
+  fun confirmNightSummary()
 }
 
 /** Default in-memory implementation used by the current single-session demo. */
@@ -144,6 +151,9 @@ class DefaultDataRepository(
   private val _lastBrewResult = MutableStateFlow<BrewResult?>(null)
   override val lastBrewResult: StateFlow<BrewResult?> = _lastBrewResult.asStateFlow()
 
+  private val _lastNightSummary = MutableStateFlow<NightSummary?>(null)
+  override val lastNightSummary: StateFlow<NightSummary?> = _lastNightSummary.asStateFlow()
+
   init {
     initialSnapshot?.let(::restoreFromSnapshot)
   }
@@ -168,6 +178,7 @@ class DefaultDataRepository(
       )
     }
     _lastBrewResult.value = null
+    _lastNightSummary.value = null
     rebuildScenario()
     persistSnapshot()
   }
@@ -494,13 +505,43 @@ class DefaultDataRepository(
 
   override fun finishNight() {
     stopNightLoop()
+    val snapshot = _gameState.value
+    val summary =
+      NightSummary(
+        completedDay = snapshot.day,
+        nextDay = snapshot.day + 1,
+        gold = snapshot.gold,
+        reputation = snapshot.reputation,
+        unlockedRecipes = snapshot.unlockedRecipeIds.size,
+        relationshipsTracked = snapshot.visitorStates.values.count { it.relationship > 0 || it.timesVisited > 0 },
+      )
+    _lastNightSummary.value = summary
+    _nightState.update {
+      it.copy(
+        guests = emptyList(),
+        currentVisitorId = null,
+        phase = NightPhase.Summary,
+      )
+    }
     _gameState.update { state ->
       state.copy(
-        day = state.day + 1,
+        phase = GamePhase.Summary,
+        tavern = state.tavern.copy(occupiedSeats = 0),
+      )
+    }
+    persistSnapshot()
+  }
+
+  override fun confirmNightSummary() {
+    val nextDay = _lastNightSummary.value?.nextDay ?: (_gameState.value.day + 1)
+    _gameState.update { state ->
+      state.copy(
+        day = nextDay,
         phase = GamePhase.Entrance,
         tavern = state.tavern.copy(occupiedSeats = 0),
       )
     }
+    _lastNightSummary.value = null
     startNight()
   }
 
@@ -604,6 +645,7 @@ class DefaultDataRepository(
     _gameState.value = snapshot.gameState
     _nightState.value = snapshot.nightState
     _lastBrewResult.value = snapshot.lastBrewResult
+    _lastNightSummary.value = snapshot.lastNightSummary
     activeRecipeId =
       snapshot.activeRecipeId.takeIf(ContentCatalog.recipesById::containsKey)
         ?: ContentCatalog.recipes.first().id
@@ -621,6 +663,7 @@ class DefaultDataRepository(
         nightState = _nightState.value,
         activeRecipeId = activeRecipeId,
         lastBrewResult = _lastBrewResult.value,
+        lastNightSummary = _lastNightSummary.value,
       )
     scope.launch {
       saveStore?.write(snapshot)

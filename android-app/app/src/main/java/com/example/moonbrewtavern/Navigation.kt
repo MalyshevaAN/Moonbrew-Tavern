@@ -24,6 +24,7 @@ import com.example.moonbrewtavern.ui.dialogue.DialogueScreen
 import com.example.moonbrewtavern.ui.entrance.EntranceScreen
 import com.example.moonbrewtavern.ui.recipebook.RecipeBookScreen
 import com.example.moonbrewtavern.ui.result.ResultScreen
+import com.example.moonbrewtavern.ui.summary.NightSummaryScreen
 import com.example.moonbrewtavern.ui.tavernroom.TavernRoomScreen
 
 /** Wires the repository-backed night flow into the app navigation graph. */
@@ -48,6 +49,7 @@ fun MainNavigation() {
   val gameState by loadedRepository.gameState.collectAsStateWithLifecycle()
   val nightState by loadedRepository.nightState.collectAsStateWithLifecycle()
   val brewResult by loadedRepository.lastBrewResult.collectAsStateWithLifecycle()
+  val nightSummary by loadedRepository.lastNightSummary.collectAsStateWithLifecycle()
 
   LaunchedEffect(gameState.phase, backStack.size) {
     if (gameState.phase == GamePhase.Entrance && backStack.size > 1) {
@@ -79,6 +81,7 @@ fun MainNavigation() {
           backStack.add(TavernRoom)
           backStack.add(Result)
         }
+        GamePhase.Summary -> backStack.add(Summary)
       }
     }
   }
@@ -91,6 +94,11 @@ fun MainNavigation() {
         backStack.removeLastOrNull()
         return@NavDisplay
       }
+      if (backStack.lastOrNull() == Summary) {
+        loadedRepository.confirmNightSummary()
+        backStack.removeLastOrNull()
+        return@NavDisplay
+      }
 
       backStack.removeLastOrNull()
       when (backStack.lastOrNull()) {
@@ -100,6 +108,7 @@ fun MainNavigation() {
         RecipeBook -> loadedRepository.openRecipeBook()
         Brewing -> loadedRepository.openBrewing()
         Result -> {}
+        Summary -> {}
         null -> {}
       }
     },
@@ -202,6 +211,20 @@ fun MainNavigation() {
             },
             modifier = Modifier,
           )
+        }
+        entry<Summary> {
+          nightSummary?.let { summary ->
+            NightSummaryScreen(
+              summary = summary,
+              onStartNextNight = {
+                loadedRepository.confirmNightSummary()
+                while (backStack.size > 1) {
+                  backStack.removeLastOrNull()
+                }
+              },
+              modifier = Modifier,
+            )
+          }
         }
       },
   )

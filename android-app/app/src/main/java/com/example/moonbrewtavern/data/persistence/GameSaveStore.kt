@@ -8,6 +8,7 @@ import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.dataStore
 import com.example.moonbrewtavern.domain.model.BrewResult
 import com.example.moonbrewtavern.domain.model.GameState
+import com.example.moonbrewtavern.domain.model.NightSummary
 import com.example.moonbrewtavern.domain.model.NightState
 import java.io.InputStream
 import java.io.OutputStream
@@ -30,6 +31,7 @@ data class PersistedGameSnapshot(
   val nightState: NightState,
   val activeRecipeId: String,
   val lastBrewResult: BrewResult?,
+  val lastNightSummary: NightSummary? = null,
 )
 
 /** Envelope used by typed DataStore so the absence of a save is explicit. */
