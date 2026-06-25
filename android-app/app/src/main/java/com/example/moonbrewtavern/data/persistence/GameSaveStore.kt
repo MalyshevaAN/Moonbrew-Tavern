@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataMigration
 import androidx.datastore.core.Serializer
-import androidx.datastore.core.updateData
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.dataStore
 import com.example.moonbrewtavern.domain.model.BrewResult
@@ -77,7 +76,7 @@ private object PersistedGameStoreSerializer : Serializer<PersistedGameStore> {
     t: PersistedGameStore,
     output: OutputStream,
   ) {
-    output.write(gameSaveJson.encodeToString(t).encodeToByteArray())
+    output.write(gameSaveJson.encodeToString<PersistedGameStore>(t).encodeToByteArray())
   }
 }
 
