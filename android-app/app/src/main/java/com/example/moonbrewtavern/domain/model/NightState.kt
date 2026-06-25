@@ -10,6 +10,7 @@ data class NightState(
   val guests: List<TavernGuest> = emptyList(),
   val currentVisitorId: String? = null,
   val phase: NightPhase = NightPhase.Entrance,
+  val nightStarted: Boolean = false,
   val remainingNightMs: Long = GameLoopConfig.nightDurationMs,
   val elapsedNightMs: Long = 0L,
   val nightEnded: Boolean = false,

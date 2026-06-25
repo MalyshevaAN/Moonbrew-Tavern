@@ -122,7 +122,7 @@ class DefaultDataRepository(
     MutableStateFlow(
       GameState(
         day = 3,
-        gold = 12,
+        gold = 100,
         reputation = 4,
         phase = GamePhase.Entrance,
         unlockedRecipeIds = setOf(ContentCatalog.recipes.first().id),
@@ -156,6 +156,7 @@ class DefaultDataRepository(
 
   init {
     initialSnapshot?.let(::restoreFromSnapshot)
+    ensureMinimumGold(100)
   }
 
   override fun startNight() {
@@ -167,6 +168,7 @@ class DefaultDataRepository(
         guests = emptyList(),
         currentVisitorId = null,
         phase = NightPhase.Entrance,
+        nightStarted = false,
         remainingNightMs = GameLoopConfig.nightDurationMs,
         elapsedNightMs = 0L,
         nightEnded = false,
@@ -221,10 +223,11 @@ class DefaultDataRepository(
     val snapshot = _nightState.value
     if (snapshot.guests.isEmpty()) return
 
-    val isOpeningTavern = snapshot.phase == NightPhase.Entrance
+    val isOpeningTavern = !snapshot.nightStarted
     _nightState.value =
       snapshot.copy(
         phase = NightPhase.Tavern,
+        nightStarted = true,
         pendingVisitorIds = emptyList(),
         remainingNightMs = if (isOpeningTavern) GameLoopConfig.nightDurationMs else snapshot.remainingNightMs,
         elapsedNightMs = if (isOpeningTavern) 0L else snapshot.elapsedNightMs,
@@ -233,12 +236,11 @@ class DefaultDataRepository(
       )
     _gameState.update { it.copy(phase = GamePhase.Tavern) }
     rebuildScenario()
-    startNightLoop()
+    ensureNightLoopRunning()
     persistSnapshot()
   }
 
   override fun returnToEntrance() {
-    stopNightLoop()
     if (_nightState.value.queueVisitorIds.isEmpty() && _nightState.value.guests.isEmpty()) {
       finishNight()
       return
@@ -251,7 +253,6 @@ class DefaultDataRepository(
     val guest = _nightState.value.guests.firstOrNull { it.visitorId == visitorId } ?: return
     if (guest.status != TavernGuestStatus.WaitingForOrder) return
 
-    stopNightLoop()
     _nightState.update { state ->
       state.copy(currentVisitorId = visitorId, phase = NightPhase.Dialogue)
     }
@@ -414,7 +415,7 @@ class DefaultDataRepository(
     }
     _gameState.update { it.copy(phase = GamePhase.Tavern) }
     rebuildScenario(nextCurrentVisitorId)
-    startNightLoop()
+    ensureNightLoopRunning()
     persistSnapshot()
     return result
   }
@@ -423,7 +424,6 @@ class DefaultDataRepository(
     val guest = _nightState.value.guests.firstOrNull { it.visitorId == visitorId } ?: return
     if (guest.status != TavernGuestStatus.WantsToLeave) return
 
-    stopNightLoop()
     val departureResult = guest.brewResult ?: unresolvedDepartureFor(visitorId)
     val updatedGuests = _nightState.value.guests.filterNot { it.visitorId == visitorId }
 
@@ -499,7 +499,7 @@ class DefaultDataRepository(
       rebuildScenario()
       persistSnapshot()
     } else if (!_nightState.value.nightEnded) {
-      startNightLoop()
+      ensureNightLoopRunning()
       persistSnapshot()
     } else {
       persistSnapshot()
@@ -548,11 +548,14 @@ class DefaultDataRepository(
     startNight()
   }
 
-  private fun startNightLoop() {
-    stopNightLoop()
+  private fun ensureNightLoopRunning() {
+    val snapshot = _nightState.value
+    if (!snapshot.nightStarted || snapshot.nightEnded || nightJob?.isActive == true) {
+      return
+    }
     nightJob =
       scope.launch {
-        while (isActive && !_nightState.value.nightEnded) {
+        while (isActive && _nightState.value.nightStarted && !_nightState.value.nightEnded) {
           delay(GameLoopConfig.nightTickMs)
           advanceNight()
         }
@@ -566,7 +569,7 @@ class DefaultDataRepository(
 
   private fun advanceNight() {
     val snapshot = _nightState.value
-    if (snapshot.phase != NightPhase.Tavern || snapshot.nightEnded) return
+    if (!snapshot.nightStarted || snapshot.nightEnded) return
 
     val elapsed = snapshot.elapsedNightMs + GameLoopConfig.nightTickMs
     val remaining = (snapshot.remainingNightMs - GameLoopConfig.nightTickMs).coerceAtLeast(0L)
@@ -600,15 +603,29 @@ class DefaultDataRepository(
       updatedGuests.firstOrNull { it.status == TavernGuestStatus.WaitingForOrder }?.visitorId
         ?: updatedGuests.firstOrNull { it.status == TavernGuestStatus.WantsToLeave }?.visitorId
 
+    if (didNightEnd && updatedGuests.isEmpty()) {
+      _nightState.value =
+        snapshot.copy(
+          guests = emptyList(),
+          currentVisitorId = null,
+          remainingNightMs = remaining,
+          elapsedNightMs = elapsed,
+          nightEnded = true,
+        )
+      finishNight()
+      return
+    }
+
     _nightState.value =
       snapshot.copy(
         pendingVisitorIds = snapshot.pendingVisitorIds,
         guests = updatedGuests,
         currentVisitorId = nextCurrentVisitorId,
+        nightStarted = true,
         remainingNightMs = remaining,
         elapsedNightMs = elapsed,
         nightEnded = didNightEnd,
-        phase = if (didNightEnd) NightPhase.Summary else NightPhase.Tavern,
+        phase = if (didNightEnd && snapshot.phase == NightPhase.Tavern) NightPhase.Tavern else snapshot.phase,
       )
     syncOccupiedSeats(updatedGuests.size)
     rebuildScenario(nextCurrentVisitorId)
@@ -619,6 +636,16 @@ class DefaultDataRepository(
     _gameState.update { state ->
       state.copy(tavern = state.tavern.copy(occupiedSeats = occupiedSeats))
     }
+  }
+
+  private fun ensureMinimumGold(minimumGold: Int) {
+    if (_gameState.value.gold >= minimumGold) return
+
+    _gameState.update { state ->
+      state.copy(gold = minimumGold)
+    }
+    rebuildScenario()
+    persistSnapshot()
   }
 
   private fun unresolvedDepartureFor(visitorId: String): BrewResult {
@@ -646,20 +673,20 @@ class DefaultDataRepository(
 
   private fun restoreFromSnapshot(snapshot: PersistedGameSnapshot) {
     _gameState.value = snapshot.gameState
-    _nightState.value = snapshot.nightState
+    _nightState.value = snapshot.nightState.normalizedForRestore(_gameState.value.day)
     _lastBrewResult.value = snapshot.lastBrewResult
     _lastNightSummary.value = snapshot.lastNightSummary
     activeRecipeId =
       snapshot.activeRecipeId.takeIf(ContentCatalog.recipesById::containsKey)
         ?: ContentCatalog.recipes.first().id
-    rebuildScenario(snapshot.nightState.currentVisitorId)
+    rebuildScenario(_nightState.value.currentVisitorId)
 
     if (repairExhaustedNight()) {
       return
     }
 
-    if (_nightState.value.phase == NightPhase.Tavern && !_nightState.value.nightEnded) {
-      startNightLoop()
+    if (_nightState.value.nightStarted && !_nightState.value.nightEnded) {
+      ensureNightLoopRunning()
     }
   }
 
@@ -706,6 +733,20 @@ class DefaultDataRepository(
   }
 
   private companion object {
+    fun NightState.normalizedForRestore(day: Int): NightState {
+      if (nightStarted) return this
+
+      val inferredNightStarted =
+        nightEnded ||
+          elapsedNightMs > 0L ||
+          remainingNightMs < GameLoopConfig.nightDurationMs ||
+          phase != NightPhase.Entrance ||
+          guests.isNotEmpty() ||
+          queueVisitorIds != queueForDay(day)
+
+      return copy(nightStarted = inferredNightStarted)
+    }
+
     fun queueForDay(day: Int): List<String> {
       val visitors = ContentCatalog.starterQueueVisitorIds
       if (visitors.isEmpty()) return emptyList()

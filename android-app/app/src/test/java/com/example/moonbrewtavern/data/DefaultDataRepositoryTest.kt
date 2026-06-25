@@ -12,51 +12,52 @@ import org.junit.Test
 
 class DefaultDataRepositoryTest {
   @Test
-  fun tavernTimer_ticksAndDoesNotResetAfterReturningFromDialogue() = runBlocking {
+  fun nightTimer_continuesWhileDialogueIsOpen() = runBlocking {
     val repository = DefaultDataRepository()
     val visitorId = repository.nightState.value.queueVisitorIds.first()
     repository.admitVisitor(visitorId)
     repository.enterTavern()
 
     delay(1_200L)
-    val afterFirstTick = repository.nightState.value.remainingNightMs
-    assertTrue(afterFirstTick < com.example.moonbrewtavern.domain.model.GameLoopConfig.nightDurationMs)
+    val beforeDialogue = repository.nightState.value.remainingNightMs
+    assertTrue(beforeDialogue < com.example.moonbrewtavern.domain.model.GameLoopConfig.nightDurationMs)
 
     repository.startDialogue(visitorId)
-    repository.enterTavern()
 
-    assertEquals(afterFirstTick, repository.nightState.value.remainingNightMs)
     delay(1_200L)
-    assertTrue(repository.nightState.value.remainingNightMs < afterFirstTick)
+    assertTrue(repository.nightState.value.remainingNightMs < beforeDialogue)
   }
 
   @Test
-  fun tavernTimer_isPreservedWhenReturningToStreetAndBack() = runBlocking {
+  fun nightTimer_continuesOnStreetAndDoesNotResetWhenReturning() = runBlocking {
     val repository = DefaultDataRepository()
     val firstVisitorId = repository.nightState.value.queueVisitorIds.first()
     repository.admitVisitor(firstVisitorId)
     repository.enterTavern()
 
     delay(1_200L)
-    val remainingBeforeStreet = repository.nightState.value.remainingNightMs
-    assertTrue(remainingBeforeStreet < com.example.moonbrewtavern.domain.model.GameLoopConfig.nightDurationMs)
+    val beforeStreet = repository.nightState.value.remainingNightMs
+    assertTrue(beforeStreet < com.example.moonbrewtavern.domain.model.GameLoopConfig.nightDurationMs)
 
     repository.returnToEntrance()
-    repository.admitVisitor(repository.nightState.value.queueVisitorIds.first())
+
+    delay(1_200L)
+    val onStreet = repository.nightState.value.remainingNightMs
+    assertTrue(onStreet < beforeStreet)
+
     repository.enterTavern()
 
-    assertEquals(remainingBeforeStreet, repository.nightState.value.remainingNightMs)
-    delay(1_200L)
-    assertTrue(repository.nightState.value.remainingNightMs < remainingBeforeStreet)
+    assertEquals(onStreet, repository.nightState.value.remainingNightMs)
   }
 
   @Test
   fun purchaseRecipe_deductsGoldUnlocksAndSelectsRecipe() {
     val repository = DefaultDataRepository()
+    val initialGold = repository.gameState.value.gold
 
     assertTrue(repository.purchaseRecipe("herbal-mix", 10))
 
-    assertEquals(2, repository.gameState.value.gold)
+    assertEquals(initialGold - 10, repository.gameState.value.gold)
     assertTrue("herbal-mix" in repository.gameState.value.unlockedRecipeIds)
     assertEquals("herbal-mix", repository.scenario.recipe.id)
   }
@@ -64,10 +65,11 @@ class DefaultDataRepositoryTest {
   @Test
   fun purchaseRecipe_rejectsRecipeWhenGoldIsInsufficient() {
     val repository = DefaultDataRepository()
+    val initialGold = repository.gameState.value.gold
 
-    assertFalse(repository.purchaseRecipe("moon-ale", 18))
+    assertFalse(repository.purchaseRecipe("moon-ale", initialGold + 1))
 
-    assertEquals(12, repository.gameState.value.gold)
+    assertEquals(initialGold, repository.gameState.value.gold)
     assertFalse("moon-ale" in repository.gameState.value.unlockedRecipeIds)
   }
 
@@ -91,11 +93,12 @@ class DefaultDataRepositoryTest {
   @Test
   fun purchaseIngredient_deductsGoldAndAddsStock() {
     val repository = DefaultDataRepository()
+    val initialGold = repository.gameState.value.gold
     val initialStock = repository.gameState.value.ingredientStock.getValue("moonmint")
 
     assertTrue(repository.purchaseIngredient("moonmint", quantity = 1, unitPrice = 2))
 
-    assertEquals(10, repository.gameState.value.gold)
+    assertEquals(initialGold - 2, repository.gameState.value.gold)
     assertEquals(initialStock + 1, repository.gameState.value.ingredientStock["moonmint"])
     assertEquals(initialStock + 1, repository.scenario.availableIngredients.first { it.id == "moonmint" }.stockCount)
   }
@@ -120,14 +123,24 @@ class DefaultDataRepositoryTest {
   fun repository_restoresSavedSnapshotOnCreation() {
     val sourceRepository = DefaultDataRepository()
     val visitorId = sourceRepository.nightState.value.queueVisitorIds.first()
-    sourceRepository.purchaseRecipe("herbal-mix", 10)
-    sourceRepository.admitVisitor(visitorId)
+    val snapshotGameState =
+      sourceRepository.gameState.value.copy(
+        gold = 120,
+        unlockedRecipeIds = sourceRepository.gameState.value.unlockedRecipeIds + "herbal-mix",
+      )
+    val snapshotNightState =
+      sourceRepository.nightState.value.copy(
+        queueVisitorIds = sourceRepository.nightState.value.queueVisitorIds - visitorId,
+        guests = listOf(com.example.moonbrewtavern.domain.model.TavernGuest(visitorId = visitorId)),
+        currentVisitorId = visitorId,
+        nightStarted = true,
+      )
 
     val snapshot =
       PersistedGameSnapshot(
-        gameState = sourceRepository.gameState.value,
-        nightState = sourceRepository.nightState.value,
-        activeRecipeId = sourceRepository.scenario.recipe.id,
+        gameState = snapshotGameState,
+        nightState = snapshotNightState,
+        activeRecipeId = "herbal-mix",
         lastBrewResult = sourceRepository.lastBrewResult.value,
       )
     val restoredRepository =
@@ -135,8 +148,8 @@ class DefaultDataRepositoryTest {
         initialSnapshot = snapshot,
       )
 
-    assertEquals(sourceRepository.gameState.value, restoredRepository.gameState.value)
-    assertEquals(sourceRepository.nightState.value, restoredRepository.nightState.value)
+    assertEquals(snapshotGameState, restoredRepository.gameState.value)
+    assertEquals(snapshotNightState, restoredRepository.nightState.value)
     assertEquals("herbal-mix", restoredRepository.scenario.recipe.id)
   }
 
