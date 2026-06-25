@@ -51,38 +51,43 @@ fun MainNavigation() {
   val brewResult by loadedRepository.lastBrewResult.collectAsStateWithLifecycle()
   val nightSummary by loadedRepository.lastNightSummary.collectAsStateWithLifecycle()
 
-  LaunchedEffect(gameState.phase, backStack.size) {
-    if (gameState.phase == GamePhase.Entrance && backStack.size > 1) {
-      while (backStack.size > 1) {
-        backStack.removeLastOrNull()
+  LaunchedEffect(gameState.phase, nightState.queueVisitorIds, nightState.guests) {
+    if (
+      gameState.phase == GamePhase.Entrance &&
+      nightState.queueVisitorIds.isEmpty() &&
+      nightState.guests.isEmpty()
+    ) {
+      loadedRepository.finishNight()
+    }
+  }
+
+  LaunchedEffect(gameState.phase) {
+    val targetStack =
+      when (gameState.phase) {
+        GamePhase.Entrance -> listOf(Main)
+        GamePhase.Tavern -> listOf(Main, TavernRoom)
+        GamePhase.Dialogue -> listOf(Main, TavernRoom, Dialogue)
+        GamePhase.RecipeBook -> listOf(Main, TavernRoom, Dialogue, RecipeBook)
+        GamePhase.Brewing -> listOf(Main, TavernRoom, Dialogue, RecipeBook, Brewing)
+        GamePhase.Result -> listOf(Main, TavernRoom, Result)
+        GamePhase.Summary -> listOf(Main, Summary)
+      }
+
+    targetStack.forEachIndexed { index, navKey ->
+      if (backStack.getOrNull(index) != navKey) {
+        while (backStack.size > index) {
+          backStack.removeLastOrNull()
+        }
+        targetStack.drop(index).forEach(backStack::add)
+        return@LaunchedEffect
       }
     }
 
-    if (backStack.size == 1) {
-      when (gameState.phase) {
-        GamePhase.Entrance -> Unit
-        GamePhase.Tavern -> backStack.add(TavernRoom)
-        GamePhase.Dialogue -> {
-          backStack.add(TavernRoom)
-          backStack.add(Dialogue)
-        }
-        GamePhase.RecipeBook -> {
-          backStack.add(TavernRoom)
-          backStack.add(Dialogue)
-          backStack.add(RecipeBook)
-        }
-        GamePhase.Brewing -> {
-          backStack.add(TavernRoom)
-          backStack.add(Dialogue)
-          backStack.add(RecipeBook)
-          backStack.add(Brewing)
-        }
-        GamePhase.Result -> {
-          backStack.add(TavernRoom)
-          backStack.add(Result)
-        }
-        GamePhase.Summary -> backStack.add(Summary)
-      }
+    while (backStack.size > targetStack.size) {
+      backStack.removeLastOrNull()
+    }
+    while (backStack.size < targetStack.size) {
+      backStack.add(targetStack[backStack.size])
     }
   }
 

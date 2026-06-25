@@ -31,6 +31,26 @@ class DefaultDataRepositoryTest {
   }
 
   @Test
+  fun tavernTimer_isPreservedWhenReturningToStreetAndBack() = runBlocking {
+    val repository = DefaultDataRepository()
+    val firstVisitorId = repository.nightState.value.queueVisitorIds.first()
+    repository.admitVisitor(firstVisitorId)
+    repository.enterTavern()
+
+    delay(1_200L)
+    val remainingBeforeStreet = repository.nightState.value.remainingNightMs
+    assertTrue(remainingBeforeStreet < com.example.moonbrewtavern.domain.model.GameLoopConfig.nightDurationMs)
+
+    repository.returnToEntrance()
+    repository.admitVisitor(repository.nightState.value.queueVisitorIds.first())
+    repository.enterTavern()
+
+    assertEquals(remainingBeforeStreet, repository.nightState.value.remainingNightMs)
+    delay(1_200L)
+    assertTrue(repository.nightState.value.remainingNightMs < remainingBeforeStreet)
+  }
+
+  @Test
   fun purchaseRecipe_deductsGoldUnlocksAndSelectsRecipe() {
     val repository = DefaultDataRepository()
 
@@ -118,6 +138,34 @@ class DefaultDataRepositoryTest {
     assertEquals(sourceRepository.gameState.value, restoredRepository.gameState.value)
     assertEquals(sourceRepository.nightState.value, restoredRepository.nightState.value)
     assertEquals("herbal-mix", restoredRepository.scenario.recipe.id)
+  }
+
+  @Test
+  fun repository_recoversToSummaryFromEmptyEntranceSnapshot() {
+    val sourceRepository = DefaultDataRepository()
+    val restoredRepository =
+      DefaultDataRepository(
+        initialSnapshot =
+          PersistedGameSnapshot(
+            gameState =
+              sourceRepository.gameState.value.copy(
+                phase = com.example.moonbrewtavern.domain.model.GamePhase.Entrance,
+              ),
+            nightState =
+              sourceRepository.nightState.value.copy(
+                queueVisitorIds = emptyList(),
+                guests = emptyList(),
+                currentVisitorId = null,
+                phase = com.example.moonbrewtavern.domain.model.NightPhase.Entrance,
+              ),
+            activeRecipeId = sourceRepository.scenario.recipe.id,
+            lastBrewResult = null,
+            lastNightSummary = null,
+          ),
+      )
+
+    assertEquals(com.example.moonbrewtavern.domain.model.GamePhase.Summary, restoredRepository.gameState.value.phase)
+    assertNotNull(restoredRepository.lastNightSummary.value)
   }
 
   @Test

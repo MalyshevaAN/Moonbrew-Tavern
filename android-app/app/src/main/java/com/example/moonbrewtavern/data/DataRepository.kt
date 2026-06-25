@@ -239,7 +239,10 @@ class DefaultDataRepository(
 
   override fun returnToEntrance() {
     stopNightLoop()
-    _nightState.update { it.copy(phase = NightPhase.Entrance) }
+    if (_nightState.value.queueVisitorIds.isEmpty() && _nightState.value.guests.isEmpty()) {
+      finishNight()
+      return
+    }
     _gameState.update { it.copy(phase = GamePhase.Entrance) }
     persistSnapshot()
   }
@@ -651,9 +654,41 @@ class DefaultDataRepository(
         ?: ContentCatalog.recipes.first().id
     rebuildScenario(snapshot.nightState.currentVisitorId)
 
+    if (repairExhaustedNight()) {
+      return
+    }
+
     if (_nightState.value.phase == NightPhase.Tavern && !_nightState.value.nightEnded) {
       startNightLoop()
     }
+  }
+
+  private fun repairExhaustedNight(): Boolean {
+    val nightSnapshot = _nightState.value
+    if (nightSnapshot.queueVisitorIds.isNotEmpty() || nightSnapshot.guests.isNotEmpty()) {
+      return false
+    }
+
+    if (_lastNightSummary.value != null) {
+      _nightState.update {
+        it.copy(
+          guests = emptyList(),
+          currentVisitorId = null,
+          phase = NightPhase.Summary,
+        )
+      }
+      _gameState.update { state ->
+        state.copy(
+          phase = GamePhase.Summary,
+          tavern = state.tavern.copy(occupiedSeats = 0),
+        )
+      }
+      persistSnapshot()
+      return true
+    }
+
+    finishNight()
+    return true
   }
 
   private fun persistSnapshot() {
