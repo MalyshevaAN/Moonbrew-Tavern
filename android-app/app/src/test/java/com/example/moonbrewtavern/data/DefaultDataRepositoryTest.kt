@@ -104,6 +104,31 @@ class DefaultDataRepositoryTest {
   }
 
   @Test
+  fun purchaseRecipe_rejectsInvalidRecipeAndNegativePrice() {
+    val repository = DefaultDataRepository()
+    val initialGold = repository.gameState.value.gold
+
+    assertFalse(repository.purchaseRecipe("invalid-recipe", 5))
+    assertFalse(repository.purchaseRecipe("moon-ale", -1))
+
+    assertEquals(initialGold, repository.gameState.value.gold)
+    assertFalse("invalid-recipe" in repository.gameState.value.unlockedRecipeIds)
+    assertFalse("moon-ale" in repository.gameState.value.unlockedRecipeIds)
+  }
+
+  @Test
+  fun purchaseIngredient_rejectsWhenGoldIsInsufficient() {
+    val repository = DefaultDataRepository()
+    val initialGold = repository.gameState.value.gold
+    val initialStock = repository.gameState.value.ingredientStock.getValue("moonmint")
+
+    assertFalse(repository.purchaseIngredient("moonmint", quantity = initialGold + 1, unitPrice = 1))
+
+    assertEquals(initialGold, repository.gameState.value.gold)
+    assertEquals(initialStock, repository.gameState.value.ingredientStock["moonmint"])
+  }
+
+  @Test
   fun servingBrew_consumesSelectedIngredients() {
     val repository = DefaultDataRepository()
     val visitorId = repository.nightState.value.queueVisitorIds.first()
@@ -117,6 +142,44 @@ class DefaultDataRepositoryTest {
     assertEquals(before.getValue("moonmint") - 1, repository.gameState.value.ingredientStock["moonmint"])
     assertEquals(before.getValue("emberzest") - 1, repository.gameState.value.ingredientStock["emberzest"])
     assertEquals(before.getValue("silverfoam") - 1, repository.gameState.value.ingredientStock["silverfoam"])
+  }
+
+  @Test
+  fun evaluateBrew_returnsExactMatchForCorrectRecipeIngredients() {
+    val repository = DefaultDataRepository()
+
+    val result = repository.evaluateBrew(listOf("moonmint", "emberzest", "silverfoam"))
+
+    assertTrue(result.isExactMatch)
+    assertEquals(3, result.matchedIngredients)
+    assertEquals(3, result.selectedIngredients.size)
+  }
+
+  @Test
+  fun evaluateBrew_returnsPartialMatchForTwoCorrectIngredients() {
+    val repository = DefaultDataRepository()
+
+    val result = repository.evaluateBrew(listOf("moonmint", "emberzest", "dusk-syrup"))
+
+    assertFalse(result.isExactMatch)
+    assertEquals(2, result.matchedIngredients)
+    assertTrue(result.outcome.goldReward >= 1)
+  }
+
+  @Test
+  fun serveBrew_returnsEmptyBrewWhenStockIsInsufficient() {
+    val repository = DefaultDataRepository()
+    val visitorId = repository.nightState.value.queueVisitorIds.first()
+    repository.admitVisitor(visitorId)
+    repository.enterTavern()
+    repository.startDialogue(visitorId)
+    val beforeStock = repository.gameState.value.ingredientStock
+
+    val result = repository.serveBrew(List(200) { "moonmint" })
+
+    assertFalse(result.isExactMatch)
+    assertTrue(result.selectedIngredients.isEmpty())
+    assertEquals(beforeStock, repository.gameState.value.ingredientStock)
   }
 
   @Test
