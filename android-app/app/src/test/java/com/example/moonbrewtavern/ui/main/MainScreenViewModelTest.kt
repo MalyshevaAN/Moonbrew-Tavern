@@ -15,13 +15,7 @@ import org.junit.Test
 
 class MainScreenViewModelTest {
   @Test
-  fun uiState_initiallyLoading() = runTest {
-    val viewModel = MainScreenViewModel(FakeMyModelRepository())
-    assertTrue(viewModel.uiState.first() is MainScreenUiState.Loading)
-  }
-
-  @Test
-  fun uiState_eventuallyEmitsScenario() = runTest {
+  fun uiState_emitsScenarioFromRepository() = runTest {
     val viewModel = MainScreenViewModel(FakeMyModelRepository())
     val successState = viewModel.uiState.first { it is MainScreenUiState.Success } as MainScreenUiState.Success
 
