@@ -1,5 +1,6 @@
 package com.example.moonbrewtavern.data
 
+import com.example.moonbrewtavern.data.persistence.PersistedGameSnapshot
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertTrue
@@ -86,5 +87,29 @@ class DefaultDataRepositoryTest {
     assertEquals(before.getValue("moonmint") - 1, repository.gameState.value.ingredientStock["moonmint"])
     assertEquals(before.getValue("emberzest") - 1, repository.gameState.value.ingredientStock["emberzest"])
     assertEquals(before.getValue("silverfoam") - 1, repository.gameState.value.ingredientStock["silverfoam"])
+  }
+
+  @Test
+  fun repository_restoresSavedSnapshotOnCreation() {
+    val sourceRepository = DefaultDataRepository()
+    val visitorId = sourceRepository.nightState.value.queueVisitorIds.first()
+    sourceRepository.purchaseRecipe("herbal-mix", 10)
+    sourceRepository.admitVisitor(visitorId)
+
+    val snapshot =
+      PersistedGameSnapshot(
+        gameState = sourceRepository.gameState.value,
+        nightState = sourceRepository.nightState.value,
+        activeRecipeId = sourceRepository.scenario.recipe.id,
+        lastBrewResult = sourceRepository.lastBrewResult.value,
+      )
+    val restoredRepository =
+      DefaultDataRepository(
+        initialSnapshot = snapshot,
+      )
+
+    assertEquals(sourceRepository.gameState.value, restoredRepository.gameState.value)
+    assertEquals(sourceRepository.nightState.value, restoredRepository.nightState.value)
+    assertEquals("herbal-mix", restoredRepository.scenario.recipe.id)
   }
 }

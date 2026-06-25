@@ -1,6 +1,9 @@
 package com.example.moonbrewtavern.domain.model
 
+import kotlinx.serialization.Serializable
+
 /** Persistent game progress that survives across individual nights and guests. */
+@Serializable
 data class GameState(
   val day: Int,
   val gold: Int,
