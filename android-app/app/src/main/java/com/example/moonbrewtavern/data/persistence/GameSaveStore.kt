@@ -76,7 +76,7 @@ private object PersistedGameStoreSerializer : Serializer<PersistedGameStore> {
     t: PersistedGameStore,
     output: OutputStream,
   ) {
-    output.write(gameSaveJson.encodeToString<PersistedGameStore>(t).encodeToByteArray())
+    output.write(gameSaveJson.encodeToString(PersistedGameStore.serializer(), t).encodeToByteArray())
   }
 }
 
